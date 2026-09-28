@@ -10,3 +10,6 @@ skills/motion-graphics/profiles/local/
 
 # scratch pieces made while dogfooding
 dogfood/
+
+# machine-specific agent notes
+CLAUDE.local.md
