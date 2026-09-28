@@ -11,6 +11,12 @@ Write `TREATMENT.md` before any scene code. It is the brief every scene is check
 One paragraph: the organising concept (the chosen one from CONCEPTS.md, and why it beat the other two), the recurring motif, what the viewer should feel and remember.
 Name the single message (what someone could repeat after one view).
 
+## Core device
+The one mechanism that makes this concept itself ("the frame edge is the wall", "the codebase is a city"). List the shots where it is unmistakably on screen.
+
+## Material language
+2-3 signature materials (what each surface is and how it's shaded: which starting look it grows from, or the custom shader to write), the light preset and environment, the grade. See [lookdev.md](lookdev.md).
+
 ## Money shot
 The one frame people will screenshot: what's in it, where it lands (bar/beat), and why it's surprising. It's also the poster.
 

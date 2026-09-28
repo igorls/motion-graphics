@@ -9,7 +9,8 @@ src/project.ts     title, default format, fps, duration, music, fallback bpm
 src/brand.ts       colours, fonts, logo, tagline, CTA: the only place brand values live
 src/timeline.ts    the edit: which scene plays when, placed by bars/beats
 src/scenes/*.ts    one module per scene (+ _shared.ts for motifs every scene reuses)
-src/engine/stage3d.ts  the 3D stage (three.js scene + camera into the HDR pipeline), textPlane, imagePlane
+src/engine/stage3d.ts  the 3D stage (three.js scene + camera into the HDR pipeline), lighting, paper, textPlane, imagePlane
+src/engine/looks.ts    materials and custom shaders (look development)
 src/engine/        format/safe areas, gl helpers, post chain, audio data, type helpers, engine
 scripts/render.ts  offline renderer: stills, sheet, video, poster (headless Chrome -> raw frames -> ffmpeg)
 scripts/analyze_audio.py   music -> public/audio.json (uv + librosa)
@@ -85,6 +86,8 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - `type.ts`: `font(spec, px, weight)`, `fitSize(ctx, lines, spec, weight, maxW, maxPx)`, `wrap`, `wrapBalanced`, `glyphLayout(ctx, text)` (per-letter x with kerning), `smart(s)` (typographic quotes).
 - `audio.ts`: `beatAt`, `timeOfBeat`, `barAt`, `timeOfBar`, `nearestBeat`, `nearestDownbeat`, `env(name, t)`, `hit(kind, t, hl)`, `events(kind, t0, t1)`.
 - `stage3d.ts`: `new Stage3D(fov).fog(hex, near, far)` is a three.js scene + perspective camera that renders into the HDR pipeline (motion blur, bloom and grain apply). Each frame: position the camera with `stage.look(x, y, z, tx, ty, tz, roll)` from `f.t` (keys/springs on the beat grid), animate objects, then `comp.draw(r, stage.render(r), out, { mode: 'replace', srgb: false })` and draw 2D layers on top. `textPlane(text, fontSpec, { height, color, glow })` and `imagePlane(img, height)` put type and images in space (unlit, exact colours; `glow` > 1 blooms). Anything three.js offers works: `InstancedMesh` for thousands of objects, `Points` for dust, real geometry with lights (`MeshStandardMaterial` + a light), custom `ShaderMaterial`. See `scenes/flythrough.ts`.
+- `stage3d.ts` lighting: `stage.light('studio' | 'daylight' | 'dusk' | 'night', { extent })` adds a hemisphere fill and a soft-shadow key; `castShadows(obj)`; `paper(hex)`, `matte(hex)`, `ground(material)`. Pass the frame to `stage.render(r, f)` so time-driven looks animate.
+- `looks.ts`: `customLook(glsl)` (write your own fragment body), starting looks `halftone`, `gooch`, `rimGlow`, `holo`; physical `glass`, `metal`, `iridescent` with `studioEnvironment`; `addRim`, `addGrain` inject GLSL into any lit material. See [lookdev.md](lookdev.md).
 - `clip.ts`: `await Clip.load(name)` in `init()` (frames from `public/clips/<name>/`, made by `scripts/prep_clip.ts`), then `clip.frame(lt, { speed, mode: 'hold' | 'loop' | 'pingpong', offset })` returns the frame for a local time, or `clip.drawFit(ctx, lt, x, y, w, h, opts)` draws it so the keyed subject's bounding box fits the rect. Draw with `shadowBlur` for a soft shadow cast from its alpha.
 - `scenes/_shared.ts`: `LIN` (brand colours, linear), `glow(key, k)`, `BgField` (the two-tone drifting background with an accent light), `brandFill` (the brand gradient as a fill style). Put the piece's own recurring motif here too.
 

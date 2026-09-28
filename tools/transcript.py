@@ -9,6 +9,7 @@ Transcripts live in ~/.claude/projects/<project-slug>/<session-id>.jsonl.
 import json
 import sys
 
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')  # Windows consoles default to cp1252
 args = sys.argv[1:]
 path = args[0]
 since = args[args.index('--since') + 1] if '--since' in args else ''

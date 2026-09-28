@@ -14,7 +14,7 @@ Also pull 3-4 frames from a draft MP4 at the moments that matter (hook frame 1, 
 
 ## Run it with a fresh reviewer
 
-Spawn a subagent (or ask another model) with only: the contact sheets and stills (file paths), `BRIEF.md`, `TREATMENT.md`, the brand profile, and this brief. Not your reasoning, not the code. Brief:
+Spawn a subagent (or ask another model) with only: the contact sheets and stills (file paths), `BRIEF.md`, `TREATMENT.md`, the brand profile, `REVIEW.md` (the previous rounds: scores, notes, what was changed), and this brief. Not your reasoning, not the code. The history keeps reviewers consistent: without it, each fresh reviewer re-litigates the last one's taste. Brief:
 
 > You are the creative director of a top motion design studio reviewing a junior's 15-30 s social piece before it goes to the client. Look at every frame provided. Score each dimension 1-10, where 5 means "competent and forgettable" and 8 means "I'd put it in our reel". Be specific and unsentimental: name frames by timestamp.
 >
@@ -22,17 +22,28 @@ Spawn a subagent (or ask another model) with only: the contact sheets and stills
 > 2. **Composition:** is every frame a designed image (hierarchy, scale contrast, balance, use of the whole frame), or text placed on a background?
 > 3. **Motion and camera:** does the camera move through space? Is there depth, parallax, a transformation? Snap-and-hold rhythm, or linear drift?
 > 4. **Variety:** do shot sizes, layouts and techniques change from shot to shot, or is it the same frame repeated?
-> 5. **Craft:** type (kerning, hierarchy, readability at phone size), colour discipline, edge quality, timing of holds, transitions.
-> 6. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
-> 7. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting?
+> 5. **Look and materials:** are the surfaces designed (a material language, custom shading, light that sculpts), or default grey renders? Does frame 0 look as designed as the money shot?
+> 6. **Craft:** type (kerning, hierarchy, readability at phone size, calm areas behind headlines), colour discipline, edge quality, timing of holds, transitions.
+> 7. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
+> 8. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting?
+>
+> Also check the concept's core device (named in TREATMENT.md): is it clearly visible on screen, or diluted into a generic shot?
+>
+> If previous rounds exist: say which earlier notes were fixed, which weren't, and don't reverse an earlier note unless the change made it wrong (say why).
 >
 > Then: the single weakest thing, and the one change that would raise the piece the most. Finally: would you ship it? yes/no.
 
 ## Act on it
 
-- Fix the single weakest thing first, even if it means rebuilding a shot or changing the concept. Then re-render the evidence and review again with a fresh reviewer.
-- Ship when every dimension is 8+ and the answer is yes. If you run out of time first, ship the best version and tell the user the scores and what's still weak.
+- Fix the single weakest thing first, even if it means rebuilding a shot or changing the concept. Then re-render the evidence and review again with a fresh reviewer (who also gets the log).
+- **Plateaus:** if the weakest dimension hasn't risen in two rounds, the fix is structural, not a tweak. Look/Craft stuck → a lookdev pass (materials, light, custom shader, grade); Composition stuck → re-block the shot (camera, scale, what's in front); Concept or core device stuck → revisit the device in the treatment.
+- **Ship gate:** every dimension 8+ and "yes", reviewed on frames from the final render. After ~5 rounds below the bar, stop and ask the user (scores, weak spots, estimated time for another pass; continue, change approach, or ship). Never ship below the bar silently.
 - Keep the scores and the reviewer's notes in `REVIEW.md` next to the treatment; they are part of the delivery.
+
+## Calibration from dogfooding
+
+- **7/10 (user and reviewer agreed), a paper-architecture launch film:** real 3D world, varied shots, strong process, but grey-box materials (Craft 4-6), headlines on a busy field held up by scrims, the concept's core device ("the frame edge is the wall") diluted, shipped after a round that said "no".
+- **~7/10 after 10 rounds, a "city built from the source code" Reel:** an ownable concept and a portfolio-grade match cut, but Craft sat at 6 for all ten rounds because every fix went to camera and composition, never to the materials; the hook was a plain page for ~4 s; reviewers without the log contradicted each other.
 
 ## Calibration: what a 5/10 looks like
 

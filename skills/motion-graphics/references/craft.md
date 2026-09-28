@@ -59,7 +59,8 @@ Plan shots with this vocabulary, and vary it:
 - **Readable on a phone.** At 1080 px wide, body text ≥ 40 px, labels ≥ 32 px, headlines 90-200 px. Test in the contact sheet at thumbnail size: if you can't read it there, it's too small or too brief.
 - **Kerning and punctuation.** Draw whole words when you can (Canvas2D applies kerning); for per-letter animation use `glyphLayout()` so letters sit where the whole word would. Typographic quotes and dashes (’ “ ” … – —) in display text (`smart()`).
 - **Wrap with intent.** Break lines by meaning and balance (`wrapBalanced()`); never leave a lone short word on the last line.
-- **No outlined or haloed type**, no drop shadows as a readability crutch. For text over photos, darken the photo region with a gradient or put the type on a solid band.
+- **No outlined or haloed type**, no drop shadows as a readability crutch.
+- **Compose calm areas for type, don't patch them with scrims.** Plan the shot so the headline sits over sky, a shadowed wall, a defocused plane, an out-of-focus foreground, or a flat surface in the world; or set the type *in* the world (on a facade, a floor, a screen). A gradient scrim is a last resort for photos you can't re-frame.
 - **Words are part of the image**, not subtitles pasted on top: text rides a curve, is stamped on a card, typed into the product's input field, revealed by the divider.
 
 ## Colour and light
@@ -102,7 +103,10 @@ Purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix co
 
 ## Checklist before any render
 
-- [ ] There's a money shot, and it is the strongest frame in the piece.
+- [ ] There's a money shot, and it is the strongest frame in the piece; frame 0 is designed to the same standard.
+- [ ] The concept's core device is clearly on screen, not diluted.
+- [ ] A material language with at least one custom shader; no default grey surfaces ([lookdev.md](lookdev.md)).
+- [ ] Headlines sit on calm areas composed into the shot, not on scrims.
 - [ ] The camera moves through depth in at least one shot; shot sizes vary; no two consecutive shots share a layout.
 - [ ] Something transforms; at least one transition carries an idea.
 - [ ] Every frame is designed edge to edge (no leftover empty space).
