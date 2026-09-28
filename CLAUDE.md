@@ -21,4 +21,4 @@ This repo IS the skill (`skills/motion-graphics/`). The goal: a strong starting 
 ## Status and next ideas
 
 - Verified end to end: kinetic type, before/after wipe, keyed clip insert with depth, end card, adaptive motion blur, poster bake, 9:16 and 4:5, score-conditioned music (YuE2) and green-screen clips (MiniMax FastH3).
-- Not yet tried: image-to-video from a real product photo; first/last-frame transitions between two designed frames; a matte model for clips that can't be keyed; SFX generation and mixing; voice-over; a 16:9 launch piece; open-source project brands.
+- Not yet tried: still cutouts from an image model with native alpha (e.g. Qwen Image 2.1 emits real transparent PNGs; no keying needed), also as start frames for image-to-video; image-to-video from a real product photo; first/last-frame transitions between two designed frames; a matte model for clips that can't be keyed; SFX generation and mixing; voice-over; a 16:9 launch piece; open-source project brands.
