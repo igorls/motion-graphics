@@ -16,9 +16,14 @@ When you composed the music (a score), you know the tempo and the bar map; say s
   --first-beat S    force beat 1 at S seconds (e.g. a measured lead-in); implies nothing else
   --sections MAP    name:bar pairs; reports where each section really starts (the biggest energy step
                     within a beat of the planned downbeat) and writes "sections" into audio.json
+
+Every run also writes the MUSIC MAP (musicmap.py): MUSIC-MAP.md (sections, per-bar energy/density,
+moments such as the drop, builds, stops, peak and tail, and edit suggestions) and out/music-map.png
+(spectrogram with bars, sections and events). Read both before planning the edit. --no-map skips it.
 """
 import argparse
 import json
+import os
 
 import librosa
 import numpy as np
@@ -59,6 +64,9 @@ def main():
     ap.add_argument("--bpm", type=float, default=None, help="known tempo (from the score): fit only the phase")
     ap.add_argument("--first-beat", type=float, default=None, help="force the first beat at this time (s)")
     ap.add_argument("--sections", default=None, help='bar map, e.g. "intro:0,build:4,drop:6"')
+    ap.add_argument("--no-map", action="store_true", help="skip MUSIC-MAP.md and out/music-map.png")
+    ap.add_argument("--map-md", default="MUSIC-MAP.md")
+    ap.add_argument("--map-png", default="out/music-map.png")
     a = ap.parse_args()
 
     y, _ = librosa.load(a.audio, sr=SR, mono=True)
@@ -83,20 +91,27 @@ def main():
             beats = np.arange(first, dur, period)
             tempo = 60.0 / period
 
+    kick, kick_env = band_onsets(low)
     if a.bpm or a.first_beat is not None:
         period = 60.0 / (a.bpm or tempo)
         if a.first_beat is not None:
             first = a.first_beat % period
         else:
-            # phase that best lines the grid up with onsets (1 ms search over one period)
-            env_t = librosa.frames_to_time(np.arange(len(onset_env)), sr=SR, hop_length=HOP)
-            cands = np.arange(0, period, 0.001)
-            score = [np.interp(np.arange(c, dur, period), env_t, onset_env).sum() for c in cands]
-            first = float(cands[int(np.argmax(score))])
+            # phase = circular mean of the strongest kicks' positions within a beat (weighted by their low-band
+            # energy). Hats, offbeat bass and envelope smearing would pull a simple envelope fit off the beat.
+            kt = np.array(kick)
+            if len(kt) >= 4:
+                w = np.array([low[int(t * FPS):int(t * FPS) + 8].max() if int(t * FPS) < len(low) else 0 for t in kt])
+                keep = w >= np.percentile(w, 60)
+                ang = 2 * np.pi * (kt[keep] % period) / period
+                first = float((np.arctan2((w[keep] * np.sin(ang)).sum(), (w[keep] * np.cos(ang)).sum()) % (2 * np.pi)) * period / (2 * np.pi))
+            else:
+                env_t = librosa.frames_to_time(np.arange(len(kick_env)), sr=SR, hop_length=HOP)
+                cands = np.arange(0, period, 0.001)
+                first = float(cands[int(np.argmax([np.interp(np.arange(c, dur, period), env_t, kick_env).sum() for c in cands]))])
         beats = np.arange(first, dur, period)
         tempo = 60.0 / period
 
-    kick, _ = band_onsets(low)
     snare, _ = band_onsets(mid)
     hat, _ = band_onsets(high, delta=0.12)
     anyo = [round(float(t), 4) for t in librosa.onset.onset_detect(onset_envelope=onset_env, sr=SR, hop_length=HOP, units="time")]
@@ -132,6 +147,19 @@ def main():
             print(f"{name:<12}{bar:>4}{planned:>10.2f}{measured:>10.2f}{(measured - planned) * 1000:>10.0f}")
             sections.append({"name": name, "bar": bar, "start": round(planned, 4), "measured": round(measured, 4)})
 
+    mm = None
+    if not a.no_map:
+        import musicmap
+        centroid = librosa.feature.spectral_centroid(S=S, sr=SR)[0]
+        mm = musicmap.build(
+            env={"rms": norm(rms), "low": norm(low), "mid": norm(mid), "high": norm(high)}, fps=FPS,
+            beats=beats, downbeats=downbeats, bpm=tempo, dur=dur,
+            onsets={"kick": kick, "snare": snare, "hat": hat, "any": anyo}, centroid=centroid,
+            beats_per_bar=n, planned=sections)
+        musicmap.write_markdown(mm, a.map_md, os.path.basename(a.audio))
+        os.makedirs(os.path.dirname(a.map_png) or ".", exist_ok=True)
+        musicmap.write_png(mm, a.map_png, y, SR, HOP)
+
     out = {
         "duration": round(dur, 4),
         "bpm": round(tempo, 3),
@@ -140,11 +168,17 @@ def main():
         "envFps": FPS,
         "env": {k: [round(float(v), 3) for v in norm(e)] for k, e in {"rms": rms, "low": low, "mid": mid, "high": high}.items()},
         "onsets": {"kick": kick, "snare": snare, "hat": hat, "any": anyo},
-        "sections": [{"name": x["name"], "start": x["start"]} for x in sections],
+        "sections": [{"name": x["name"], "start": x["start"]} for x in sections] if sections
+                    else ([{"name": x["name"], "start": x["start"]} for x in mm["sections"]] if mm else []),
+        # drops first in the map's wow ranking (moment('drop') = the best candidate), then everything else by time
+        "moments": ([{"kind": x["kind"], "time": x["time"], "bar": x["bar"]} for x in mm["drops"]]
+                    + [{"kind": x["kind"], "time": x["time"], "bar": x["bar"]} for x in mm["moments"] if x["kind"] != "drop"]) if mm else [],
     }
     with open(a.out, "w") as f:
         json.dump(out, f, separators=(",", ":"))
     print(f"{a.out}: {tempo:.2f} BPM, {len(beats)} beats, {len(downbeats)} bars (downbeat = beat {off}), {dur:.2f} s")
+    if mm:
+        print(f"music map: {a.map_md}, {a.map_png} ({len(mm['sections'])} sections, {len(mm['moments'])} moments; wow candidate: {mm['wow']['kind']} at {mm['wow']['time']:.2f} s)")
 
 
 if __name__ == "__main__":

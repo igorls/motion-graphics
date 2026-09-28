@@ -10,7 +10,11 @@ Most feed video autoplays muted, and many people never unmute. The piece must ma
 - **Trim to length on a phrase.** Pick a start where a phrase begins (a downbeat, often bar 1 of a section) and end on a phrase boundary with a short fade (the renderer fades the last 0.6 s). If the track's intro is slow, start at its drop so the hook has energy.
 - **Levels.** Bring the master to about -14 LUFS integrated for social (`ffmpeg -af loudnorm=I=-14:TP=-1.5:LRA=11` on the track before analysis and render).
 
-## Analysis → `public/audio.json`
+## Analysis → `public/audio.json` and the music map
+
+The analysis also writes `MUSIC-MAP.md` and `out/music-map.png` (see SKILL.md step 5): read and look at them before planning any window. The timeline can use the detected moments directly: `au.moment('drop')`, `au.moment('stop')`, `au.section('break')`.
+
+### Details
 
 ```bash
 uv run --project scripts python scripts/analyze_audio.py public/audio/<track>.mp3

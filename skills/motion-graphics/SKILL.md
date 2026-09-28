@@ -77,29 +77,38 @@ Write three genuinely different concepts in `CONCEPTS.md`, each a paragraph plus
 
 For each concept also give: why it fits the brand and the brief, the risk, and a one-line description of its money shot as the user would see it. Present all three to the user with your recommendation (the boldest that lands the message and stays on brand) and ask them to pick, mix ("the camera of 3 with the world of 2") or push further. Iterate once or twice if they want; a concept round is cheap, a rebuilt piece is not. Never recommend the expected concept because it's easier to build.
 
-### 4. Treatment and shot list
-
-Write `TREATMENT.md` ([references/treatment.md](references/treatment.md)): the idea, the concept's **core device** (the one mechanism that makes it this concept, e.g. "the frame edge is the wall"; every shot list must show it clearly), tone, the **material language** (2-3 signature materials, the light, the grade), motif, and a **shot list** with windows in bars/beats. Every shot declares its shot size (macro / close / medium / wide / overhead), camera (locked, push, dolly, orbit, crane, whip, rack focus, 3D fly-through), depth layers (what's in front, middle, back), how it transitions out, and the one thing that moves on the beat. Rules:
-
-- No two consecutive shots share a layout or shot size. Vary scale dramatically (a macro detail next to a wide).
-- At least one shot uses real depth (the 3D stage, parallax layers, or a keyed clip sandwiched between type).
-- At least one shot is a transformation (one thing becomes another) and at least one transition is motivated (match cut, the motif carries across, a whip, a wipe by a real object).
-- The whole frame is designed in every shot: backgrounds, texture, light and secondary motion are part of the image; the safe area constrains text, not imagery. Empty space must be a deliberate choice.
-
-If the piece uses generated media, the treatment also holds the **music brief** (tempo, meter, bar map, energy per section, instrumentation, the motif idea) and a **clip shot list** (role, subject, motion, screen colour, length).
-
-### 5. Scaffold
+### 4. Scaffold
 
 ```bash
 cp -r <skill-dir>/template <out-dir>        # then, in <out-dir>:
 bun install
 ```
 
-Fill `src/brand.ts` from the brand profile (fonts into `public/fonts/`, logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). With music: `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` writes `public/audio.json` ([references/audio.md](references/audio.md); when you composed the music, pass the score's truth: `--bpm <tempo> --downbeat-offset 0 --sections "intro:0,drop:6,..."` and check the measured section starts it prints). Without music the grid comes from `project.bpm`. Clips go in `public/clips/` via `scripts/prep_clip.ts`.
+Fill `src/brand.ts` from the brand profile (fonts into `public/fonts/`, logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). Music comes next (step 5). Clips go in `public/clips/` via `scripts/prep_clip.ts`.
 
 The template's example scenes are starting points that each show one technique: `hook` (kinetic type on beats), `reveal` (before/after wipe), `insert` (keyed clip with type behind and in front), `flythrough` (3D camera through depth), `assemble` (a wow moment: thousands of pieces lock into the name on the beat), `lookdev` (a material turntable, a tool), `endcard`. Read them, then write this piece's own scenes; a piece assembled from unmodified examples is a 5/10.
 
-### 6. Look development, the wow moment, and style frames: design before animating
+### 5. Music first: get the track, then read its map
+
+The edit is built on the music, and you can't hear it, so the music comes before the treatment and gets turned into something you can read and look at.
+
+1. **Get the track.** A supplied track, or generate one: write a short music brief from the chosen concept (tempo, length, the energy arc, where the peak falls, instrumentation), compose to it ([references/generative-music.md](references/generative-music.md): an *original* motif, never an example melody), render 3-4 takes. Or silent (then the grid comes from `project.bpm` and there is no map).
+2. **Map it:** `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` (for a score you wrote, add `--bpm <tempo> --downbeat-offset 0 --sections "intro:0,drop:6,..."`). Besides `public/audio.json` it writes **`MUSIC-MAP.md`** (tempo and grid, detected sections with energy, a per-bar table, moments: drops, stops, builds, breakdowns, the peak, the tail, and edit suggestions: the wow-moment candidate, cut points, calm bars for reading, the strongest hits) and **`out/music-map.png`** (the spectrogram with bars, sections and events). Read the map and look at the picture; for several takes, map each and compare.
+3. **Confirm by ear:** send the user the best take(s) with one line on what the map shows ("drop after a stop at 12.04 s, calm bars 9-11 for the end card"). Their ear and the map together decide the take.
+4. **The map is the truth for the edit.** Plan every window on it, not on what the score intended: models drift, and a picked take can put its peak a bar away from the plan. The timeline reads it: `au.moment('drop')` (the map's wow candidate), `au.section('break')`, `au.timeOfBar(n)`.
+
+### 6. Treatment and shot list, on the music map
+
+Write `TREATMENT.md` ([references/treatment.md](references/treatment.md)): the idea, the concept's **core device** (the one mechanism that makes it this concept, e.g. "the frame edge is the wall"; every shot list must show it clearly), tone, the **material language** (2-3 signature materials, the light, the grade), motif, and a **shot list** with windows in bars/beats taken from `MUSIC-MAP.md`: the wow moment on the map's wow candidate, cuts on its section starts, text and the end card in its calm bars, punctuation on its strongest hits. Every shot declares its shot size (macro / close / medium / wide / overhead), camera (locked, push, dolly, orbit, crane, whip, rack focus, 3D fly-through), depth layers (what's in front, middle, back), how it transitions out, and the one thing that moves on the beat. Rules:
+
+- No two consecutive shots share a layout or shot size. Vary scale dramatically (a macro detail next to a wide).
+- At least one shot uses real depth (the 3D stage, parallax layers, or a keyed clip sandwiched between type).
+- At least one shot is a transformation (one thing becomes another) and at least one transition is motivated (match cut, the motif carries across, a whip, a wipe by a real object).
+- The whole frame is designed in every shot: backgrounds, texture, light and secondary motion are part of the image; the safe area constrains text, not imagery. Empty space must be a deliberate choice.
+
+If the piece uses generated clips, the treatment also holds a **clip shot list** (role, subject, motion, screen colour, length).
+
+### 7. Look development, the wow moment, and style frames: design before animating
 
 **Prototype the wow moment first.** The hardest, most spectacular shot is built before anything else, the way studios build the hero shot first: a rough version in the real engine, timed to its bar, rendered as a short draft. If it doesn't make you want to replay it, redesign it now, while it's cheap. It gets the most time in the schedule. ([references/craft.md](references/craft.md#wow-engineering-the-peak) has patterns; `scenes/assemble.ts` shows one.)
 
@@ -109,20 +118,20 @@ Then build **3-4 style frames** as stills: the money shot, the hook frame (frame
 
 Then show them to the user (send the images and the lookdev still, or give their paths) with 2-3 questions: does this feel like the brand? which frame is strongest, which weakest? do the materials feel right? more or less bold, busy, colourful? Apply the answers before animating. If a frame falls outside the brand profile on purpose, say so and ask.
 
-### 7. Generate media (when models are available)
+### 8. Generate clips and other media (when models are available)
 
 Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) and pick the most controllable model for each job. Ask before using shared resources (a GPU another service is using, a live engine you'd query for real data, paid APIs) and say how much you'll use. Generation is non-deterministic, so generate **assets** once, freeze them into `public/`, and keep the render deterministic.
 
-- **Music:** compose to the edit. With a score-conditioned model, write an *original* score to the bar map: a motif that comes from this piece's idea, developed across sections ([references/generative-music.md](references/generative-music.md) has the method; never reuse an example melody). Generate 3-4 takes, analyse each, have the user listen to the best, then trim, normalise and lock the grid.
+- **Music** was step 5; if a re-take is needed, re-map it and re-check every window.
 - **Clips:** prefer image-to-video from real product imagery; for inserts, generate on a flat green (or blue) screen, prep with `bun scripts/prep_clip.ts <video> --name <n> --key auto` and **look at the QA sheet**. Several seeds; keep the best motion. [references/generative-video.md](references/generative-video.md)
 - **Batch runs on ComfyUI:** `bun scripts/comfy.ts` submits an API-format workflow with overrides and one job per varied value (seeds, prompts), waits and downloads the outputs with a provenance record.
 - **Provenance:** record every generated asset in `assets.json` (model, checkpoint, workflow, prompt or score, seed, date, prep command). Model licences and permitted uses are the user's call.
 
 Worked examples for specific models: `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI).
 
-### 8. Build scene by scene, and look at every one
+### 9. Build scene by scene, and look at every one
 
-One file per scene in `src/scenes/` ([references/engine.md](references/engine.md) is the API: 2D layers, the 3D stage, shaders, clips, post). The timeline places scenes by bars (`au.timeOfBar(n)`).
+One file per scene in `src/scenes/` ([references/engine.md](references/engine.md) is the API: 2D layers, the 3D stage, shaders, clips, post). The timeline places scenes on the music map (`au.moment('drop')`, `au.section(name)`, `au.timeOfBar(n)`), never on typed-in seconds.
 
 After each scene, **render stills and look at them** (open the PNGs with your image viewer):
 
@@ -136,14 +145,14 @@ bunx tsc --noEmit -p tsconfig.json                             # typecheck
 
 For motion you can't judge from stills, render a short draft (`video --from 2 --to 5 --samples 4`), pull frames with ffmpeg, or ask the user to watch the live preview (`bun run dev`, then http://localhost:5173/?t=2).
 
-### 9. Art-director review: score it, then raise the weakest thing
+### 10. Art-director review: score it, then raise the weakest thing
 
 Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent or a separate agent process that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning; review.md shows how in Claude Code and Codex) score concept, wow, composition, motion and camera, variety, look and materials, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. Use the strongest model available for the reviewer (a weaker reviewer is a lenient one). The reviewer scores; the gate decides: a reviewer's "ship: yes" never overrides a dimension below 8. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
 
 - **Fix the weakest dimension, not the easiest.** If a dimension hasn't moved in two rounds, tweaks aren't working: change approach structurally (Look/Craft stuck: a lookdev pass on materials and light; Composition stuck: re-block the shot; Concept stuck: revisit the core device).
 - **Ship gate:** every score 8+ and "yes", checked on frames from the final render (re-review after the last fix). If after ~5 rounds it's still below, stop and ask the user: show the scores, the remaining weak spots and an estimate for another pass; let them choose to continue, change approach, or ship as is. Never ship below the bar silently.
 
-### 10. Render and deliver
+### 11. Render and deliver
 
 ```bash
 bun scripts/render.ts video                                     # out/<format>.mp4, adaptive motion blur, BT.709, AAC
@@ -153,7 +162,7 @@ bun scripts/render.ts video --format portrait                  # each extra form
 
 Check every format's contact sheet before its final render, then pull a few frames from the final MP4 and look at them: that is what the audience gets.
 
-Deliver: the MP4s, the poster PNGs (the Reel cover), `BRIEF.md`, `CONCEPTS.md`, `TREATMENT.md`, the review scores, `assets.json`, and a `caption.txt` (1-3 sentences in the brand voice, postable as-is). Tell the user the idea in one sentence, the money shot and where it lands, what you would push further with more time, and offer re-cuts, another concept, or more formats. Platform specs: [references/formats.md](references/formats.md).
+Deliver: the MP4s, the poster PNGs (the Reel cover), `BRIEF.md`, `CONCEPTS.md`, `MUSIC-MAP.md`, `TREATMENT.md`, the review scores, `assets.json`, and a `caption.txt` (1-3 sentences in the brand voice, postable as-is). Tell the user the idea in one sentence, the money shot and where it lands, what you would push further with more time, and offer re-cuts, another concept, or more formats. Platform specs: [references/formats.md](references/formats.md).
 
 ## Laws (every piece, every tone)
 

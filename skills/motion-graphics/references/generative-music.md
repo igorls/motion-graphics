@@ -50,6 +50,9 @@ Never reuse an example melody (the adapters' scores only show the notation). Com
 
 ## Takes, selection, conform
 
+Every take gets a music map (`analyze_audio.py ... --map-md MUSIC-MAP-<take>.md --map-png out/map-<take>.png`); compare them side by side: where the drop really lands, how clean the stops are, whether the tail starts after the planned end.
+
+
 1. Generate 3-4 takes (different seeds; the score stays fixed). Music models are fast, so iterate here rather than in the edit.
 2. Analyse each: `uv run --project scripts python scripts/analyze_audio.py take.flac --out take.json` and render a spectrogram (`ffmpeg -i take.flac -lavfi showspectrumpic=s=1500x400:scale=log:fscale=log spec.png`). Check: tempo within ±0.5 BPM of the score, section changes on the written bar lines (energy steps in the spectrogram at bar × 60/BPM × beats-per-bar), no silence or junk before the end of the score.
 3. Send the best 1-2 to the user to listen, and say what you checked and what you couldn't.

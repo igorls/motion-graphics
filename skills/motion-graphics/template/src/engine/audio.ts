@@ -14,6 +14,8 @@ export interface AudioJson {
   /** Onset times by kind: kick (low band), snare (mid), hat (high), any. */
   onsets: Record<string, number[]>;
   sections?: { name: string; start: number }[];
+  /** Detected moments from the music map (analyze_audio.py): drop, stop, breakdown, peak, tail. */
+  moments?: { kind: string; time: number; bar: number }[];
 }
 
 export interface AudioSample { rms: number; low: number; mid: number; high: number; kick: number; snare: number; hat: number }
@@ -81,6 +83,26 @@ export class Audio {
     const x = clamp(t * this.data.envFps, 0, e.length - 1);
     const i = Math.floor(x), f = x - i;
     return e[i]! * (1 - f) + (e[Math.min(i + 1, e.length - 1)] ?? 0) * f;
+  }
+
+  /**
+   * The time of a detected musical moment (see MUSIC-MAP.md): `moment('drop')` is the strongest drop
+   * (the music map's wow candidate is the first listed), `moment('drop', 1)` the next one, likewise
+   * 'stop', 'breakdown', 'peak', 'tail'. Falls back to `fallback` when the track has no such moment.
+   */
+  moment(kind: string, nth = 0, fallback?: number) {
+    const all = (this.data.moments ?? []).filter((m) => m.kind === kind);
+    const m = all[nth];
+    if (m) return m.time;
+    if (fallback !== undefined) return fallback;
+    throw new Error(`no '${kind}' moment #${nth} in audio.json (run scripts/analyze_audio.py, read MUSIC-MAP.md)`);
+  }
+
+  /** Start time of the section named `name` (from --sections, or the detected ones). */
+  section(name: string, nth = 0) {
+    const s = (this.data.sections ?? []).filter((x) => x.name === name)[nth];
+    if (!s) throw new Error(`no section '${name}' #${nth} in audio.json`);
+    return s.start;
   }
 
   events(kind: string, t0: number, t1: number) {
