@@ -14,7 +14,7 @@ Also pull 3-4 frames from a draft MP4 at the moments that matter (hook frame 1, 
 
 ## Run it with a fresh reviewer
 
-Get a reviewer with fresh context, in whichever way your agent supports:
+Get a reviewer with fresh context, and the strongest model available (a smaller reviewer model is a more lenient one), in whichever way your agent supports:
 
 - **Claude Code:** a subagent (the Agent/Task tool), or a separate process: `claude -p "<brief>" < /dev/null` run in the piece's folder.
 - **Codex:** a separate non-interactive process with the frames attached: `codex exec "<brief>" -s read-only --skip-git-repo-check -i out/sheet-vertical.png -i out/stills/vertical/f_008.00.png` run in the piece's folder (prompt first: `-i` takes several files) (it can also read BRIEF.md, TREATMENT.md and REVIEW.md there).
@@ -38,7 +38,7 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 >
 > If previous rounds exist: say which earlier notes were fixed, which weren't, and don't reverse an earlier note unless the change made it wrong (say why).
 >
-> Then: the single weakest thing, and the one change that would raise the piece the most. Finally: would you ship it? yes/no.
+> Then: the single weakest thing, and the one change that would raise the piece the most. Finally: would you ship it? yes/no (answer no if any dimension is below 8).
 
 ## Act on it
 
@@ -51,6 +51,8 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 
 - **7/10 (user and reviewer agreed), a paper-architecture launch film:** real 3D world, varied shots, strong process, but grey-box materials (Craft 4-6), headlines on a busy field held up by scrims, the concept's core device ("the frame edge is the wall") diluted, shipped after a round that said "no".
 - **6-7/10 by the user ("clean, the music matched, but no wow factor"), a "city built from the source code" Reel:** an ownable concept and a portfolio-grade match cut, but Craft sat at 6 for all ten rounds because every fix went to camera and composition, never to the materials; the hook was a plain page for ~4 s; reviewers without the log contradicted each other.
+
+- **Concept 8 · Wow 8 · Variety 8 · Brand 8, but Look 6 · Craft 6, a decision-API debut film:** real per-option probabilities as phosphor ghosts collapsing on the beat, continuous hand-offs between scenes (a brick's core becomes a cube sticker, a 3x3 face unfolds into the chess board). Held back by one flat real-UI desktop beat with generic OS chrome, and a frame 0 thinner than the money shot. Its reviewer said "ship: yes" with four dimensions under 8: the gate, not the reviewer, decides.
 
 ## Calibration: what a 5/10 looks like
 

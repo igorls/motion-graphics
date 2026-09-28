@@ -38,10 +38,21 @@ Custom looks are unlit shaders driven by `looks.lightDir` (set by `stage.light()
 - **Ray marching:** a whole world in one fragment shader (an `FSPass` with an SDF scene): impossible geometry, infinite repetition, smooth unions (`smin`), soft shadows and AO computed in the march. Composite it under 3D or 2D layers.
 - **Per-scene grade:** an `FSPass` after the stage (before type) that maps luminance to the brand's colours, crushes or lifts blacks, adds a colour cast: each scene can have its own grade within the piece's palette.
 
+## Real UI inside a designed world
+
+Showing the real product (a page, an app window, a terminal) is honest and often necessary, but a flat screenshot with generic OS chrome breaks any material language instantly (in dogfooding, the one desktop beat held a whole piece's Look score at 6). Restage it:
+
+- **Rebuild the UI as designed elements** in the world's materials: the real layout, the real strings and numbers, drawn in the piece's type, colours and light (Canvas2D layers or `textPlane`s). Never invent values the real UI doesn't show.
+- **Or put the screenshot on an object in the world:** a screen, a sheet, a panel, lit by the scene's key, with the world's grade applied, glass reflections and falloff; move the camera so the UI is a surface in space, not a rectangle on top.
+- **Crop to the part that matters** (the one panel, the one number) and scale it up; small UI text is illegible on a phone anyway.
+- **Replace generic chrome** (title bars, taskbars, scrollbars) with nothing, or with chrome designed in the piece's language.
+
 ## Checklist
 
 - [ ] The piece has a named material language (2-3 materials + light + grade) written in the treatment.
 - [ ] At least one custom shader, designed for this piece.
 - [ ] A lookdev turntable still was rendered and the look chosen from it.
 - [ ] No default grey surfaces anywhere; every surface catches the light like the material it claims to be.
+- [ ] Real UI is restaged in the world's materials, not dropped in as a flat screenshot with generic chrome.
+- [ ] Frame 0 has the money shot's light, density and material quality.
 - [ ] Materials react to the music somewhere (a rim pulse, emissive glyphs, a ripple on the drop).
