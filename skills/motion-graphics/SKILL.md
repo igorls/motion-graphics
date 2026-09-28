@@ -7,7 +7,7 @@ description: Design and render advanced, code-driven motion graphics videos (soc
 
 You are the creative director, designer, animator and editor of this piece, working at the level of a top motion studio. The engine in `<skill-dir>/template/` is a deterministic renderer with 2D, 3D, shaders, video clips, motion blur and a film look; everything else is your craft.
 
-**The bar:** someone scrolling past stops, watches to the end, and wants to know how it was made. Not "a clean, correct video": a piece with one idea executed with conviction, at least one shot nobody has seen for this product, and every frame designed. A readable, on-brand sequence of text slides is a 5/10 and a failure of this skill, however polished. When in doubt, go bolder; the review step exists to pull back what doesn't work.
+**The bar:** someone scrolling past stops, watches to the end, replays the peak, and wants to know how it was made. Not "a clean, correct video": a piece with one idea executed with conviction, at least one shot nobody has seen for this product, and every frame designed. A readable, on-brand sequence of text slides is a 5/10 and a failure of this skill, however polished. When in doubt, go bolder; the review step exists to pull back what doesn't work.
 
 `<skill-dir>` is this file's directory (Claude Code prints it as "Base directory for this skill"). Don't guess the install path.
 
@@ -67,7 +67,7 @@ Write the answers into `BRIEF.md`; it is what concepts and reviews are judged ag
 
 ### 3. Concepts: three directions, chosen together
 
-Write three genuinely different concepts in `CONCEPTS.md`, each a paragraph plus its **money shot** (the one frame people will screenshot) and its signature transition:
+Write three genuinely different concepts in `CONCEPTS.md`, each a paragraph plus its **money shot** (the one frame people will screenshot), its **wow moment** (the one *motion event* people will replay: something assembles, shatters, transforms, or the camera does the impossible, landing on the music's peak) and its signature transition:
 
 1. **Expected:** the direction a competent studio would pitch first (useful as a floor).
 2. **Bold:** a strong visual metaphor or world the product lives in, with a camera and depth.
@@ -95,11 +95,13 @@ bun install
 
 Fill `src/brand.ts` from the brand profile (fonts into `public/fonts/`, logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). With music: `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` writes `public/audio.json` ([references/audio.md](references/audio.md); add `--downbeat-offset 0` when you composed the music and bar 1 starts on its first beat). Without music the grid comes from `project.bpm`. Clips go in `public/clips/` via `scripts/prep_clip.ts`.
 
-The template's example scenes are starting points that each show one technique: `hook` (kinetic type on beats), `reveal` (before/after wipe), `insert` (keyed clip with type behind and in front), `flythrough` (3D camera through depth), `lookdev` (a material turntable, a tool), `endcard`. Read them, then write this piece's own scenes; a piece assembled from unmodified examples is a 5/10.
+The template's example scenes are starting points that each show one technique: `hook` (kinetic type on beats), `reveal` (before/after wipe), `insert` (keyed clip with type behind and in front), `flythrough` (3D camera through depth), `assemble` (a wow moment: thousands of pieces lock into the name on the beat), `lookdev` (a material turntable, a tool), `endcard`. Read them, then write this piece's own scenes; a piece assembled from unmodified examples is a 5/10.
 
-### 6. Look development and style frames: design before animating
+### 6. Look development, the wow moment, and style frames: design before animating
 
-**Look development first.** Build the piece's material language in a lookdev turntable (`scenes/lookdev.ts`): candidate materials for the signature surfaces under the piece's light, including at least one custom shader written for this piece ([references/lookdev.md](references/lookdev.md)). Render stills, choose, then use those materials in the style frames. Default grey materials never reach a style frame.
+**Prototype the wow moment first.** The hardest, most spectacular shot is built before anything else, the way studios build the hero shot first: a rough version in the real engine, timed to its bar, rendered as a short draft. If it doesn't make you want to replay it, redesign it now, while it's cheap. It gets the most time in the schedule. ([references/craft.md](references/craft.md#wow-engineering-the-peak) has patterns; `scenes/assemble.ts` shows one.)
+
+**Look development.** Build the piece's material language in a lookdev turntable (`scenes/lookdev.ts`): candidate materials for the signature surfaces under the piece's light, including at least one custom shader written for this piece ([references/lookdev.md](references/lookdev.md)). Render stills, choose, then use those materials in the style frames. Default grey materials never reach a style frame.
 
 Then build **3-4 style frames** as stills: the money shot, the hook frame (frame 0 and the first second: it must be as designed as the money shot, in the world, never a plain page with text), the densest frame, the end card. Render them and look hard: is each one a finished design you'd post? Iterate the stills until yes. Animating a weak frame only makes a weak shot.
 
@@ -134,7 +136,7 @@ For motion you can't judge from stills, render a short draft (`video --from 2 --
 
 ### 9. Art-director review: score it, then raise the weakest thing
 
-Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning) score concept, composition, motion and camera, variety, look and materials, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
+Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning) score concept, wow, composition, motion and camera, variety, look and materials, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
 
 - **Fix the weakest dimension, not the easiest.** If a dimension hasn't moved in two rounds, tweaks aren't working: change approach structurally (Look/Craft stuck: a lookdev pass on materials and light; Composition stuck: re-block the shot; Concept stuck: revisit the core device).
 - **Ship gate:** every score 8+ and "yes", checked on frames from the final render (re-review after the last fix). If after ~5 rounds it's still below, stop and ask the user: show the scores, the remaining weak spots and an estimate for another pass; let them choose to continue, change approach, or ship as is. Never ship below the bar silently.
@@ -153,7 +155,7 @@ Deliver: the MP4s, the poster PNGs (the Reel cover), `BRIEF.md`, `CONCEPTS.md`, 
 
 ## Laws (every piece, every tone)
 
-- **Ambition first.** One strong idea, a money shot, depth, transformation and scale contrast. Never slides.
+- **Ambition first.** One strong idea, a money shot, a wow moment on the peak, depth, transformation and scale contrast. Never slides.
 - **No default materials.** Every surface is designed: a material language per piece, at least one custom shader, light chosen with the materials.
 - **The hook is the first 1.5 s.** Motion and the most striking visual from frame 1; no logo intro, no fade from black.
 - **Readable with the sound off.** Any line meant to be read holds settled for ~0.3 s per word (a short label ≥ 0.8 s). Fast in, then hold.

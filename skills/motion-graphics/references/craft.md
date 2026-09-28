@@ -16,6 +16,22 @@ Think of the work that sets the standard in motion design: the Apple product fil
 
 A piece that is correct, readable, on brand and on the beat but lacks these is a 5/10. The rules below keep it clean; this section is what makes it good.
 
+## Wow: engineering the peak
+
+A clean piece is forgettable; a piece with one moment people replay gets shared. The wow moment is a *motion event*, not a frame, and it lands on the music's peak (the drop, the downbeat after a build, the stop). Plan it in the concept, build it first, give it the most time, and protect it: everything before it builds anticipation (stillness, a held breath, a rising camera), everything after lets it land (a hold, a slow reveal).
+
+Patterns that reliably produce it (invent your own version for the piece):
+
+- **Assembly / disassembly:** thousands of pieces (the product's own units: records, pixels, cards, glyphs, packets) fly from chaos into the name, the logo, a UI, a number, or shatter out of one. `engine/swarm.ts` does this deterministically; choose what the pieces *are* so it means something.
+- **Impossible continuous camera:** one unbroken move across scales (inside a character → the screen → the room → the city), or through things that can't be passed through. Hides its cuts in motion blur and matched shapes.
+- **Transformation on the beat:** one object becomes another in a single hit (a line becomes a road, a chart becomes a skyline, a wall slides and the frame widens).
+- **Time manipulation:** freeze the world mid-action and move the camera through the frozen moment (bullet time), then release on the beat; or reverse time to rebuild something that broke.
+- **Scale shock:** the thing we've been looking at turns out to be tiny (or huge): a sudden pull-back reveals it as one of thousands.
+- **Physics with intent:** things fall, bounce, stack, ripple, collide, with overshoot and settle (springs, staggered delays), so the world feels real and then does something unreal.
+- **The format itself:** the frame edge, the aspect ratio, the UI of the platform, the scroll become part of the event.
+
+Test: describe the moment in one sentence to someone. If they don't ask "wait, how?", it isn't the wow moment yet.
+
 ## Shot vocabulary
 
 Plan shots with this vocabulary, and vary it:
@@ -103,6 +119,7 @@ Purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix co
 
 ## Checklist before any render
 
+- [ ] There's a wow moment people would replay, on the music's peak, prototyped first and polished most.
 - [ ] There's a money shot, and it is the strongest frame in the piece; frame 0 is designed to the same standard.
 - [ ] The concept's core device is clearly on screen, not diluted.
 - [ ] A material language with at least one custom shader; no default grey surfaces ([lookdev.md](lookdev.md)).

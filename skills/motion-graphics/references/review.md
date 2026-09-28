@@ -19,13 +19,14 @@ Spawn a subagent (or ask another model) with only: the contact sheets and stills
 > You are the creative director of a top motion design studio reviewing a junior's 15-30 s social piece before it goes to the client. Look at every frame provided. Score each dimension 1-10, where 5 means "competent and forgettable" and 8 means "I'd put it in our reel". Be specific and unsentimental: name frames by timestamp.
 >
 > 1. **Concept:** is there one clear, ownable idea? Would anyone remember it tomorrow?
-> 2. **Composition:** is every frame a designed image (hierarchy, scale contrast, balance, use of the whole frame), or text placed on a background?
-> 3. **Motion and camera:** does the camera move through space? Is there depth, parallax, a transformation? Snap-and-hold rhythm, or linear drift?
-> 4. **Variety:** do shot sizes, layouts and techniques change from shot to shot, or is it the same frame repeated?
-> 5. **Look and materials:** are the surfaces designed (a material language, custom shading, light that sculpts), or default grey renders? Does frame 0 look as designed as the money shot?
-> 6. **Craft:** type (kerning, hierarchy, readability at phone size, calm areas behind headlines), colour discipline, edge quality, timing of holds, transitions.
-> 7. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
-> 8. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting?
+> 2. **Wow:** which moment would you replay or send to someone? Name it by timestamp. If there is none, this is 6 at most, however clean the piece is.
+> 3. **Composition:** is every frame a designed image (hierarchy, scale contrast, balance, use of the whole frame), or text placed on a background?
+> 4. **Motion and camera:** does the camera move through space? Is there depth, parallax, a transformation? Snap-and-hold rhythm, or linear drift?
+> 5. **Variety:** do shot sizes, layouts and techniques change from shot to shot, or is it the same frame repeated?
+> 6. **Look and materials:** are the surfaces designed (a material language, custom shading, light that sculpts), or default grey renders? Does frame 0 look as designed as the money shot?
+> 7. **Craft:** type (kerning, hierarchy, readability at phone size, calm areas behind headlines), colour discipline, edge quality, timing of holds, transitions.
+> 8. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
+> 9. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting?
 >
 > Also check the concept's core device (named in TREATMENT.md): is it clearly visible on screen, or diluted into a generic shot?
 >
@@ -43,7 +44,7 @@ Spawn a subagent (or ask another model) with only: the contact sheets and stills
 ## Calibration from dogfooding
 
 - **7/10 (user and reviewer agreed), a paper-architecture launch film:** real 3D world, varied shots, strong process, but grey-box materials (Craft 4-6), headlines on a busy field held up by scrims, the concept's core device ("the frame edge is the wall") diluted, shipped after a round that said "no".
-- **~7/10 after 10 rounds, a "city built from the source code" Reel:** an ownable concept and a portfolio-grade match cut, but Craft sat at 6 for all ten rounds because every fix went to camera and composition, never to the materials; the hook was a plain page for ~4 s; reviewers without the log contradicted each other.
+- **6-7/10 by the user ("clean, the music matched, but no wow factor"), a "city built from the source code" Reel:** an ownable concept and a portfolio-grade match cut, but Craft sat at 6 for all ten rounds because every fix went to camera and composition, never to the materials; the hook was a plain page for ~4 s; reviewers without the log contradicted each other.
 
 ## Calibration: what a 5/10 looks like
 
