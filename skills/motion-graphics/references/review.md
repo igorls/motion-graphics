@@ -14,7 +14,13 @@ Also pull 3-4 frames from a draft MP4 at the moments that matter (hook frame 1, 
 
 ## Run it with a fresh reviewer
 
-Spawn a subagent (or ask another model) with only: the contact sheets and stills (file paths), `BRIEF.md`, `TREATMENT.md`, the brand profile, `REVIEW.md` (the previous rounds: scores, notes, what was changed), and this brief. Not your reasoning, not the code. The history keeps reviewers consistent: without it, each fresh reviewer re-litigates the last one's taste. Brief:
+Get a reviewer with fresh context, in whichever way your agent supports:
+
+- **Claude Code:** a subagent (the Agent/Task tool), or a separate process: `claude -p "<brief>" < /dev/null` run in the piece's folder.
+- **Codex:** a separate non-interactive process with the frames attached: `codex exec "<brief>" -s read-only --skip-git-repo-check -i out/sheet-vertical.png -i out/stills/vertical/f_008.00.png` run in the piece's folder (prompt first: `-i` takes several files) (it can also read BRIEF.md, TREATMENT.md and REVIEW.md there).
+- **Anything else:** another model or a new chat session given only the files below.
+
+Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, `TREATMENT.md`, the brand profile, `REVIEW.md` (the previous rounds: scores, notes, what was changed), and this brief. Not your reasoning, not the code. The history keeps reviewers consistent: without it, each fresh reviewer re-litigates the last one's taste. Brief:
 
 > You are the creative director of a top motion design studio reviewing a junior's 15-30 s social piece before it goes to the client. Look at every frame provided. Score each dimension 1-10, where 5 means "competent and forgettable" and 8 means "I'd put it in our reel". Be specific and unsentimental: name frames by timestamp.
 >

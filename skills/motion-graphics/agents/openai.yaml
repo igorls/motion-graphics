@@ -1,0 +1,4 @@
+interface:
+  display_name: "Motion Graphics"
+  short_description: "Design and render studio-level motion graphics, ads and launch videos in code"
+  default_prompt: "Use $motion-graphics to make a short launch video for this project: run the brief interview, propose three concepts with a wow moment each, build it in the deterministic engine, review it against the rubric, and render the MP4s."

@@ -11,8 +11,13 @@ The skill is the folder `skills/motion-graphics/`.
   New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\motion-graphics" -Target "<repo>\skills\motion-graphics"
   ```
   On macOS/Linux: `ln -s <repo>/skills/motion-graphics ~/.claude/skills/motion-graphics`.
-- **One project:** copy it to `<project>/.claude/skills/motion-graphics/`.
-- **Other agents:** point them at `skills/motion-graphics/SKILL.md`.
+- **Codex (all projects):** link or copy it to `~/.agents/skills/motion-graphics/` (the shared skills folder Codex reads; `agents/openai.yaml` gives it a display name and default prompt). On Windows:
+  ```powershell
+  New-Item -ItemType Junction -Path "$env:USERPROFILE\.agents\skills\motion-graphics" -Target "<repo>\skills\motion-graphics"
+  ```
+  Then invoke it with `$motion-graphics` in a prompt.
+- **One project:** copy it to `<project>/.claude/skills/motion-graphics/` (Claude Code) or `<project>/.agents/skills/motion-graphics/` (Codex).
+- **Other agents:** point them at `skills/motion-graphics/SKILL.md`. The workflow only needs a shell (bun, ffmpeg, Chrome, uv) and a way to look at images.
 
 Then ask for a motion piece: "make a 12-second Reel announcing X".
 

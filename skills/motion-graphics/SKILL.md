@@ -9,7 +9,9 @@ You are the creative director, designer, animator and editor of this piece, work
 
 **The bar:** someone scrolling past stops, watches to the end, replays the peak, and wants to know how it was made. Not "a clean, correct video": a piece with one idea executed with conviction, at least one shot nobody has seen for this product, and every frame designed. A readable, on-brand sequence of text slides is a 5/10 and a failure of this skill, however polished. When in doubt, go bolder; the review step exists to pull back what doesn't work.
 
-`<skill-dir>` is this file's directory (Claude Code prints it as "Base directory for this skill"). Don't guess the install path.
+`<skill-dir>` is this file's directory (Claude Code prints it as "Base directory for this skill"; Codex lists the SKILL.md path with the skill). Don't guess the install path.
+
+This skill works in any coding agent that can run shell commands and look at images (Claude Code, Codex, others). Where it says "look at" an image, use your agent's image viewing (Claude Code: the Read tool; Codex: view the image or attach it); where it says "ask the user", use a structured question tool if your agent has one, otherwise ask in chat with lettered options.
 
 **Read before starting:** [references/craft.md](references/craft.md) (the bar, shot vocabulary, motion, type, colour, the 5/10 anti-patterns) and [references/lookdev.md](references/lookdev.md) (materials and custom shaders). Read the others when their step comes up.
 
@@ -105,7 +107,7 @@ The template's example scenes are starting points that each show one technique: 
 
 Then build **3-4 style frames** as stills: the money shot, the hook frame (frame 0 and the first second: it must be as designed as the money shot, in the world, never a plain page with text), the densest frame, the end card. Render them and look hard: is each one a finished design you'd post? Iterate the stills until yes. Animating a weak frame only makes a weak shot.
 
-Then show them to the user (send the images and the lookdev still) with 2-3 questions: does this feel like the brand? which frame is strongest, which weakest? do the materials feel right? more or less bold, busy, colourful? Apply the answers before animating. If a frame falls outside the brand profile on purpose, say so and ask.
+Then show them to the user (send the images and the lookdev still, or give their paths) with 2-3 questions: does this feel like the brand? which frame is strongest, which weakest? do the materials feel right? more or less bold, busy, colourful? Apply the answers before animating. If a frame falls outside the brand profile on purpose, say so and ask.
 
 ### 7. Generate media (when models are available)
 
@@ -122,7 +124,7 @@ Worked examples for specific models: `references/adapters/` (YuE2 music and Mini
 
 One file per scene in `src/scenes/` ([references/engine.md](references/engine.md) is the API: 2D layers, the 3D stage, shaders, clips, post). The timeline places scenes by bars (`au.timeOfBar(n)`).
 
-After each scene, **render stills and look at them** (open the PNGs with Read):
+After each scene, **render stills and look at them** (open the PNGs with your image viewer):
 
 ```bash
 bun scripts/render.ts stills --t 2.1,2.6,3.4 --only hook      # frames of one scene
@@ -136,7 +138,7 @@ For motion you can't judge from stills, render a short draft (`video --from 2 --
 
 ### 9. Art-director review: score it, then raise the weakest thing
 
-Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning) score concept, wow, composition, motion and camera, variety, look and materials, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
+Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent or a separate agent process that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning; review.md shows how in Claude Code and Codex) score concept, wow, composition, motion and camera, variety, look and materials, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
 
 - **Fix the weakest dimension, not the easiest.** If a dimension hasn't moved in two rounds, tweaks aren't working: change approach structurally (Look/Craft stuck: a lookdev pass on materials and light; Composition stuck: re-block the shot; Concept stuck: revisit the core device).
 - **Ship gate:** every score 8+ and "yes", checked on frames from the final render (re-review after the last fix). If after ~5 rounds it's still below, stop and ask the user: show the scores, the remaining weak spots and an estimate for another pass; let them choose to continue, change approach, or ship as is. Never ship below the bar silently.
