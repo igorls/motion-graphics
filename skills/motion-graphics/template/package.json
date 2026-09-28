@@ -1,0 +1,23 @@
+{
+  "name": "motion-piece",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "stills": "bun scripts/render.ts stills",
+    "sheet": "bun scripts/render.ts sheet",
+    "video": "bun scripts/render.ts video",
+    "poster": "bun scripts/render.ts poster"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "playwright-core": "^1.55.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0",
+    "@types/bun": "latest"
+  }
+}

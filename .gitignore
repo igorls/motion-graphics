@@ -1,0 +1,12 @@
+node_modules/
+out/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# personal and client brand profiles stay local
+skills/motion-graphics/profiles/local/
+
+# scratch pieces made while dogfooding
+dogfood/

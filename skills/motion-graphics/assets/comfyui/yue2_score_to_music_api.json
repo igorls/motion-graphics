@@ -1,0 +1,96 @@
+{
+ "1": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "yue2_3b_int8_convrot.safetensors"
+  }
+ },
+ "2": {
+  "class_type": "YuE2GenerateMusic",
+  "inputs": {
+   "clip": [
+    "1",
+    1
+   ],
+   "style": "Instrumental, no vocals, upbeat modern electronic pop, 116 BPM, punchy four-on-the-floor kick, crisp claps, warm synth bass, bright plucked synth lead, airy pads, clean polished mix, energetic advertisement music",
+   "lyrics": "[intro]\n\n[pre-chorus]\n\n[chorus]",
+   "abc": "X:1\nT:\nM:4/4\nL:1/16\nQ:1/4=116\nV: Vocal clef=treble name=\"Vocal Melody\" snm=\"Vocal\"\nV: Ins clef=treble name=\"Ins Melody\" snm=\"Inst.\"\nK:Am\n% intro\nV: Vocal\n\"Am\"z16|\"F\"z16|\nV: Ins\nA4c4e4c4|F4A4c4A4|\n% pre-chorus\nV: Vocal\n\"C\"z16|\"G\"z16|\nV: Ins\ne2e2g2e2c2e2g4|d2d2g2d2B2d2g4|\n% chorus\nV: Vocal\n\"Am\"z16|\"F\"z16|\"C\"z16|\"G\"z16|\nV: Ins\na4e4c'4a4|f4c4a4f4|g4e4c'4g4|b4g4d'4b4|\n",
+   "seed": 1234,
+   "mode": "full",
+   "max_duration": 30.0,
+   "temperature": 1.0,
+   "top_p": 0.95,
+   "top_k": 100,
+   "repetition_penalty": 1.2
+  }
+ },
+ "3": {
+  "class_type": "ConditioningZeroOut",
+  "inputs": {
+   "conditioning": [
+    "2",
+    0
+   ]
+  }
+ },
+ "4": {
+  "class_type": "EmptyYuE2LatentAudio",
+  "inputs": {
+   "seconds": [
+    "2",
+    1
+   ],
+   "batch_size": 1
+  }
+ },
+ "5": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "1",
+    0
+   ],
+   "seed": 42,
+   "steps": 32,
+   "cfg": 1.0,
+   "sampler_name": "dpm_2",
+   "scheduler": "sgm_uniform",
+   "positive": [
+    "2",
+    0
+   ],
+   "negative": [
+    "3",
+    0
+   ],
+   "latent_image": [
+    "4",
+    0
+   ],
+   "denoise": 1.0
+  }
+ },
+ "6": {
+  "class_type": "VAEDecodeAudio",
+  "inputs": {
+   "samples": [
+    "5",
+    0
+   ],
+   "vae": [
+    "1",
+    2
+   ]
+  }
+ },
+ "7": {
+  "class_type": "SaveAudio",
+  "inputs": {
+   "audio": [
+    "6",
+    0
+   ],
+   "filename_prefix": "audio/mg_test_116bpm"
+  }
+ }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Motion preview</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 12px ui-monospace, monospace; overflow: hidden; }
+      #stage { position: absolute; inset: 0 0 28px 0; display: grid; place-items: center; }
+      #c { display: block; max-width: 100%; max-height: 100%; background: #000; }
+      #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; display: flex; gap: 16px; align-items: center; padding: 0 10px; background: #1a1a1a; }
+      #bar input { flex: 1; }
+      body.export #stage { inset: 0; place-items: start; }
+      body.export #c { max-width: none; max-height: none; }
+      body.export #bar, body.clean #bar { display: none; }
+      body.clean #stage { inset: 0; }
+      #safe { position: absolute; pointer-events: none; outline: 1px dashed rgba(255, 80, 80, 0.8); display: none; }
+      body.showsafe #safe { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="c"></canvas><div id="safe"></div></div>
+    <div id="bar">
+      <span id="time">0.00</span>
+      <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" />
+      <span id="scene"></span>
+      <span>space play · ←/→ 1s · ,/. frame · [/] scene · s safe area · h hide</span>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
