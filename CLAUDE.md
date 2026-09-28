@@ -18,7 +18,12 @@ This repo IS the skill (`skills/motion-graphics/`). The goal: a strong starting 
 4. Keep `SKILL.md` frontmatter valid YAML (no `: ` inside the plain `description` value; that silently breaks skill discovery).
 5. Commit with conventional messages (`feat:`, `fix:`, `docs:`); no generated media in the repo.
 
+## Dogfood log
+
+- **2026-09-28, wormdb launch Reel (5/10 by the user).** Coherent "printout comes alive" concept, true claims, clean type, on the beat; but four flat text slides with a locked camera, empty lower frames, no depth or money shot, 23 minutes end to end, and it copied the adapter's example melody. Fixes: studio-style checkpoints with the user (brief interview, concept choice, style-frame approval), three concepts with money shots, shot list rules (vary size/layout, depth, transformation), style frames before animation, fresh-eyes art-director review with a scored rubric (review.md), the bar and shot vocabulary in craft.md, a 3D stage + fly-through example in the engine, a motif-composition method for music, and a generic ComfyUI batch runner (scripts/comfy.ts).
+
 ## Status and next ideas
 
-- Verified end to end: kinetic type, before/after wipe, keyed clip insert with depth, end card, adaptive motion blur, poster bake, 9:16 and 4:5, score-conditioned music (YuE2) and green-screen clips (MiniMax FastH3).
+- Next dogfood should check: does the agent now run the brief interview and concept round, build style frames first, use depth/3D, and pass the review at 8+? How long does a run take?
+- Verified end to end: 3D fly-through stage, ComfyUI batch runner, kinetic type, before/after wipe, keyed clip insert with depth, end card, adaptive motion blur, poster bake, 9:16 and 4:5, score-conditioned music (YuE2) and green-screen clips (MiniMax FastH3).
 - Not yet tried: still cutouts from an image model with native alpha (e.g. Qwen Image 2.1 emits real transparent PNGs; no keying needed), also as start frames for image-to-video; image-to-video from a real product photo; first/last-frame transitions between two designed frames; a matte model for clips that can't be keyed; SFX generation and mixing; voice-over; a 16:9 launch piece; open-source project brands.

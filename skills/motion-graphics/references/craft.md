@@ -2,6 +2,38 @@
 
 What separates a motion piece that looks designed from one that looks generated. Read this before designing; come back to the checklist before every render.
 
+## The bar
+
+Think of the work that sets the standard in motion design: the Apple product films where the camera glides through machined aluminium, the studio reels (Buck, ManvsMachine, Ordinary Folk, Gunner) where every frame is a poster and every transition is an idea, the music videos where type is architecture. What they share:
+
+- **One idea, executed with total conviction.** The concept dictates every choice; nothing is decoration.
+- **Space.** The camera moves *through* something: depth, parallax, perspective, light falling across surfaces. Flat layouts are the exception, used on purpose.
+- **Scale contrast.** Macro details (a pixel, a pin, a keycap, a single glyph filling the frame) against wide reveals. The cut between them is where the energy is.
+- **Transformation.** Things become other things: a line becomes a chart becomes a road; a word shatters into the data it describes; the UI unfolds into a physical object.
+- **Materiality.** Surfaces feel like something: paper grain, glass, metal, ink bleed, phosphor glow, light leaking through. Even flat design has texture and light.
+- **A money shot.** One frame so good it becomes the thumbnail, the poster, the reason people share it.
+- **Rhythm with contrast.** Holds that make the snaps hit harder; silence that makes the drop land.
+
+A piece that is correct, readable, on brand and on the beat but lacks these is a 5/10. The rules below keep it clean; this section is what makes it good.
+
+## Shot vocabulary
+
+Plan shots with this vocabulary, and vary it:
+
+- **Shot size:** extreme macro (texture fills the frame), close, medium, wide, overhead/top-down, "impossible" (inside the machine, through the screen, from the data's point of view).
+- **Camera:** locked (a deliberate choice, rare), slow push, dolly/truck through layers, orbit around an object, crane up/down, whip pan (blurred, masks a cut), roll, rack focus (depth of field shift), fly-through in 3D (`Stage3D`), zoom through a detail into the next scene (a match zoom).
+- **Depth:** at least three planes in the shots that matter: foreground elements passing close and blurred, the subject, a background with its own slower motion. Fog, scale and blur sell the distance.
+- **Transitions with ideas:** match cut on shape/colour/motion, the motif carries across the cut, zoom through a letter/hole/screen into the next world, a wipe by a real object, a morph, the camera moves past a foreground element that covers the cut, cut on the beat with a flash.
+- **Layouts:** full-bleed image; huge type as architecture (the camera moves across letters bigger than the frame); split and grid; type sandwiched in depth (behind and in front of an object); data as the image (charts, streams, lists at scale); UI in space (screens tilted in 3D, zooming into a detail).
+- **Secondary motion:** particles, dust, grain, light sweeps, slow parallax in the background, subtle reaction of the world to the beat. A frame with only one moving element feels dead.
+
+## Composition
+
+- **Design the whole frame.** The safe area constrains text and logos, not the image: backgrounds, texture, objects and camera moves use every pixel. Empty space must be a deliberate, composed choice, not the leftover below the headline.
+- **Hierarchy in three levels**: one dominant element (huge), a secondary (medium), and details (small, precise annotations). Everything else is texture.
+- **Break the grid on purpose**: an element cropped by the frame edge, type bigger than the frame, a diagonal against the verticals. Tension reads as confidence.
+- **Consecutive shots differ**: size, layout, camera and dominant direction of motion change at every cut.
+
 ## The idea
 
 - **One concept, many shots.** A strong piece has a single organising idea (a metaphor, a device, a world) that every scene plays a variation on. Example: a music video presented as plates from an illustrated treatise, each with its own instrument and idiom, sharing one palette, one type system, one grain. For an ad the idea can be small ("the divider line is the product: it turns before into after"), but there must be one.
@@ -54,11 +86,27 @@ What separates a motion piece that looks designed from one that looks generated.
 - **cinematic**: trailer scale; short declarative lines that land one at a time; big type, slow builds, one huge reveal; music swell implied.
 - **explainer**: one feature per scene, the real UI doing the thing (simulated cursor, clicks, typing), callouts and arrows, friendly pace.
 
+## Avoid: the 5/10 piece
+
+- **Slides of text:** every shot is the same layout (headline, sub, small print) on a background, and the "animation" is text appearing.
+- **Locked camera throughout**; no depth, no parallax, nothing passes in front of anything.
+- **One trick repeated**: every word types on, or every element fades up, in every shot.
+- **Empty frames**: the headline in the top third and nothing designed below it.
+- **Transitions that are just scrolling or crossfading.**
+- **No money shot**: nothing you would pick as the thumbnail.
+- **Example code shipped as the piece**: template scenes with new copy.
+
 ## Avoid (instant "AI slop")
 
 Purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix code rain, lens-flare soup, generic particle nebulae, floating 3D blobs, stock "AI" imagery, waveform/equaliser bars as decoration, everything centred, every element fading in the same way, emoji, text that flashes too fast to read, claims the product can't back up, copying another brand's or artist's look.
 
 ## Checklist before any render
+
+- [ ] There's a money shot, and it is the strongest frame in the piece.
+- [ ] The camera moves through depth in at least one shot; shot sizes vary; no two consecutive shots share a layout.
+- [ ] Something transforms; at least one transition carries an idea.
+- [ ] Every frame is designed edge to edge (no leftover empty space).
+- [ ] The art-director review ([review.md](review.md)) scores 8+ on every dimension.
 
 - [ ] The first frame and the first 1.5 s: is it the hook, and is something moving?
 - [ ] Every line readable at phone size, inside `SAFE`, and held ≥ 0.3 s/word once fully in.

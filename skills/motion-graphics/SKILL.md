@@ -5,15 +5,27 @@ description: Design and render advanced, code-driven motion graphics videos (soc
 
 # Motion graphics
 
-You make the whole piece yourself: concept, treatment, scenes in code, the look, the edit, the render. The engine in `<skill-dir>/template/` gives you a deterministic renderer; your job is the design and the craft. The standard is a piece a motion designer would be proud of: specific to the product, always moving with intent, readable on a phone with the sound off, and with every frozen frame good enough to post.
+You are the creative director, designer, animator and editor of this piece, working at the level of a top motion studio. The engine in `<skill-dir>/template/` is a deterministic renderer with 2D, 3D, shaders, video clips, motion blur and a film look; everything else is your craft.
+
+**The bar:** someone scrolling past stops, watches to the end, and wants to know how it was made. Not "a clean, correct video": a piece with one idea executed with conviction, at least one shot nobody has seen for this product, and every frame designed. A readable, on-brand sequence of text slides is a 5/10 and a failure of this skill, however polished. When in doubt, go bolder; the review step exists to pull back what doesn't work.
 
 `<skill-dir>` is this file's directory (Claude Code prints it as "Base directory for this skill"). Don't guess the install path.
 
-**Read before starting:** [references/craft.md](references/craft.md) (motion, type, colour, transitions, what to avoid). Read the others when their step comes up.
+**Read before starting:** [references/craft.md](references/craft.md) (the bar, shot vocabulary, motion, type, colour, the 5/10 anti-patterns). Read the others when their step comes up.
+
+## Work with the user like a studio works with a client
+
+The user is the client and the brand's keeper; you are the studio. Great pieces come from a real conversation at three checkpoints, not from guessing alone:
+
+1. **Creative brief** (after inspecting, before concepts): a short interview.
+2. **Concepts** (before the treatment): the user picks, mixes or pushes back.
+3. **Style frames** (before animating): the user approves the look.
+
+Ask in small batches (2-4 questions per round), each with concrete options and a recommended one, so answering takes seconds; use a structured question tool when the environment has one. Offer your own informed opinions: bring ideas to react to rather than open-ended questions. Between checkpoints, decide yourself. If the user says "just go", make the calls, state them in one line each, and keep the checkpoints as short previews they can interrupt.
 
 ## Inputs
 
-Ask only for what you can't find or infer. Defaults in brackets.
+Find or infer what you can; the brief interview covers the rest. Defaults in brackets.
 
 | Input | Default |
 |---|---|
@@ -26,46 +38,85 @@ Ask only for what you can't find or infer. Defaults in brackets.
 | Real media | the product's own UI, outputs, screenshots, copy: find them in the repo/site |
 | Output folder | `./motion/<slug>/` in the current project, or where the user says |
 
+**Time:** a strong 15 s piece takes hours of iteration, not minutes. Budget for it. Stopping when the checklist passes is how 5/10 pieces happen; stop when the review says it's excellent.
+
 ## Workflow
 
 ### 1. Inspect: find the story and the material
 
-Answer in a few lines before designing anything: What is it (one sentence)? Who is it for and what does it do for them? What is the single message of this piece? What is the most impressive thing it can *show* (not say)? What real material exists (UI, outputs, before/after pairs, copy, numbers you can cite)? What would stop a thumb mid-scroll? Gather the material into `public/media/`.
+Answer in a few lines before designing anything: What is it (one sentence)? Who is it for and what does it do for them? What is the single message? What is the most impressive thing it can *show* (not say)? What real material exists (UI, outputs, data, sounds, copy, numbers you can cite)? What is surprising, beautiful or funny about how it works inside? Gather the material into `public/media/`.
 
-Show the thing: the product doing its job beats any description of it. Use real outputs, real UI and real copy; never invent claims, numbers or testimonials. Small illustrative UI text (a filename, a toast) is fine.
+Show the thing: the product doing its job beats any description of it. Use real outputs, real UI, real data and real copy; never invent claims, numbers or testimonials.
 
-### 2. Treatment: the style bible, before any code
+**Brand:** build or load the brand profile now and confirm it with the user in the brief (palette, type, voice, what the brand never does). A piece that is brilliant but off brand is wrong.
 
-Write `TREATMENT.md` in the output folder ([references/treatment.md](references/treatment.md) has the template): the idea in one paragraph, tone, palette and type (from the brand profile), the recurring motif that ties the scenes together, and a scene-by-scene table with windows in **bars/beats**, what's on screen, how it moves, and the transition out. Plan the hook first. Keep the scene count honest for the length (roughly one idea per 2-4 s).
+### 2. Creative brief: interview the user
 
-Share the treatment with the user in a few lines and proceed unless they asked to approve it first. For a paid ad or a campaign, do ask: a treatment is cheap to change, a render is not.
+Ask what the material can't tell you. Pick the questions that matter for this piece (usually 6-10 over two or three rounds):
 
-If the piece uses generated music or clips, the treatment also holds the **music brief** (tempo, meter, bar map per section, energy, instrumentation) and a **shot list** for clips (role, subject, motion, screen colour, length).
+- **Occasion and audience:** what is launching or being said, where it runs (organic post, paid ad, site hero, conference screen), who should stop scrolling.
+- **The one message** (offer 2-3 candidates you drafted from the material) and the feeling it should leave (awe, delight, confidence, curiosity, a laugh).
+- **Brand check:** "Here's the profile I built: palette, type, voice. Anything wrong or missing? Anything this brand never does?" Ask for do's and don'ts, and whether the piece may stretch the brand (a new motion language) or must stay strictly inside it.
+- **References:** pieces, brands, films or motion studios they love (and hate) for this; offer 2-3 reference directions to react to if they have none.
+- **Must include / must avoid:** product shots, UI, people, claims, logos, legal lines.
+- **Boldness:** on a scale from "safe and clean" to "make people ask how it was made", where should this land? (Recommend the bold end unless the brand says otherwise.)
+- **Sound:** music taste and energy, generated or supplied track, voice-over or not.
+- **Formats and deadline;** how involved they want to be (review every checkpoint, or just the final).
 
-### 2b. Generate media (when models are available)
+Write the answers into `BRIEF.md`; it is what concepts and reviews are judged against.
 
-Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) and pick the most controllable model for each job. Generation is non-deterministic, so generate **assets** once, freeze them into `public/`, and keep the render deterministic.
+### 3. Concepts: three directions, chosen together
 
-- **Music:** compose to the edit. With a score-conditioned model, write the score to the treatment's bar map; otherwise prompt with tempo and length and fit the edit to the result. Generate 3-4 takes, analyse each (tempo, section timing, spectrogram), have the user listen to the best, then trim, normalise and lock the grid. [references/generative-music.md](references/generative-music.md)
-- **Clips:** prefer image-to-video from real product imagery; for inserts, generate on a flat green (or blue) screen. Prep with `bun scripts/prep_clip.ts <video> --name <n> --key auto` and **look at the QA sheet** it writes. Generate several seeds and pick the best motion. [references/generative-video.md](references/generative-video.md)
-- **Provenance:** record every generated asset in `assets.json` (model, checkpoint, workflow, prompt or score, seed, date, prep command). Model licences and permitted uses are the user's call; the record lets them decide.
+Write three genuinely different concepts in `CONCEPTS.md`, each a paragraph plus its **money shot** (the one frame people will screenshot) and its signature transition:
 
-Worked examples for specific models live in `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI). Use them as patterns for whatever models are available.
+1. **Expected:** the direction a competent studio would pitch first (useful as a floor).
+2. **Bold:** a strong visual metaphor or world the product lives in, with a camera and depth.
+3. **Unexpected:** something that makes a designer jealous: a transformation, an impossible camera move, a physical system, the product's data as the image, a format twist.
 
-### 3. Scaffold
+For each concept also give: why it fits the brand and the brief, the risk, and a one-line description of its money shot as the user would see it. Present all three to the user with your recommendation (the boldest that lands the message and stays on brand) and ask them to pick, mix ("the camera of 3 with the world of 2") or push further. Iterate once or twice if they want; a concept round is cheap, a rebuilt piece is not. Never recommend the expected concept because it's easier to build.
+
+### 4. Treatment and shot list
+
+Write `TREATMENT.md` ([references/treatment.md](references/treatment.md)): the idea, tone, look, motif, and a **shot list** with windows in bars/beats. Every shot declares its shot size (macro / close / medium / wide / overhead), camera (locked, push, dolly, orbit, crane, whip, rack focus, 3D fly-through), depth layers (what's in front, middle, back), how it transitions out, and the one thing that moves on the beat. Rules:
+
+- No two consecutive shots share a layout or shot size. Vary scale dramatically (a macro detail next to a wide).
+- At least one shot uses real depth (the 3D stage, parallax layers, or a keyed clip sandwiched between type).
+- At least one shot is a transformation (one thing becomes another) and at least one transition is motivated (match cut, the motif carries across, a whip, a wipe by a real object).
+- The whole frame is designed in every shot: backgrounds, texture, light and secondary motion are part of the image; the safe area constrains text, not imagery. Empty space must be a deliberate choice.
+
+If the piece uses generated media, the treatment also holds the **music brief** (tempo, meter, bar map, energy per section, instrumentation, the motif idea) and a **clip shot list** (role, subject, motion, screen colour, length).
+
+### 5. Scaffold
 
 ```bash
 cp -r <skill-dir>/template <out-dir>        # then, in <out-dir>:
 bun install
 ```
 
-Fill `src/brand.ts` from the brand profile (copy fonts into `public/fonts/`, the logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). With music: put it in `public/audio/` and run `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` to write `public/audio.json` (beats, downbeats, envelopes, onsets: [references/audio.md](references/audio.md); add `--downbeat-offset 0` when you composed the music and know bar 1 starts on its first beat). Without music the grid comes from `project.bpm`, so silent pieces still cut on a rhythm. Clips go in `public/clips/` via `scripts/prep_clip.ts`.
+Fill `src/brand.ts` from the brand profile (fonts into `public/fonts/`, logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). With music: `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` writes `public/audio.json` ([references/audio.md](references/audio.md); add `--downbeat-offset 0` when you composed the music and bar 1 starts on its first beat). Without music the grid comes from `project.bpm`. Clips go in `public/clips/` via `scripts/prep_clip.ts`.
 
-The template ships four example scenes (`hook`: kinetic type; `reveal`: before/after wipe; `insert`: a keyed clip with type behind and in front of it; `endcard`) and `src/timeline.ts`. Read them: they show the patterns. Adapt or replace them; don't keep example copy.
+The template's example scenes are starting points that each show one technique: `hook` (kinetic type on beats), `reveal` (before/after wipe), `insert` (keyed clip with type behind and in front), `flythrough` (3D camera through depth), `endcard`. Read them, then write this piece's own scenes; a piece assembled from unmodified examples is a 5/10.
 
-### 4. Build scene by scene, and look at every one
+### 6. Style frames: design before animating
 
-One file per scene in `src/scenes/`, each a class extending `Scene` ([references/engine.md](references/engine.md) is the API). The timeline in `src/timeline.ts` places scenes by bars (`au.timeOfBar(n)`), never by typed-in seconds.
+Build **3-4 style frames** as stills: the money shot, the hook frame, the densest frame, the end card. Render them and look hard: is each one a finished design you'd post? Iterate the stills until yes. Animating a weak frame only makes a weak shot.
+
+Then show them to the user (send the images) with 2-3 questions: does this feel like the brand? which frame is strongest, which weakest? more or less bold, busy, colourful? Apply the answers before animating. If a frame falls outside the brand profile on purpose, say so and ask.
+
+### 7. Generate media (when models are available)
+
+Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) and pick the most controllable model for each job. Generation is non-deterministic, so generate **assets** once, freeze them into `public/`, and keep the render deterministic.
+
+- **Music:** compose to the edit. With a score-conditioned model, write an *original* score to the bar map: a motif that comes from this piece's idea, developed across sections ([references/generative-music.md](references/generative-music.md) has the method; never reuse an example melody). Generate 3-4 takes, analyse each, have the user listen to the best, then trim, normalise and lock the grid.
+- **Clips:** prefer image-to-video from real product imagery; for inserts, generate on a flat green (or blue) screen, prep with `bun scripts/prep_clip.ts <video> --name <n> --key auto` and **look at the QA sheet**. Several seeds; keep the best motion. [references/generative-video.md](references/generative-video.md)
+- **Batch runs on ComfyUI:** `bun scripts/comfy.ts` submits an API-format workflow with overrides and one job per varied value (seeds, prompts), waits and downloads the outputs with a provenance record.
+- **Provenance:** record every generated asset in `assets.json` (model, checkpoint, workflow, prompt or score, seed, date, prep command). Model licences and permitted uses are the user's call.
+
+Worked examples for specific models: `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI).
+
+### 8. Build scene by scene, and look at every one
+
+One file per scene in `src/scenes/` ([references/engine.md](references/engine.md) is the API: 2D layers, the 3D stage, shaders, clips, post). The timeline places scenes by bars (`au.timeOfBar(n)`).
 
 After each scene, **render stills and look at them** (open the PNGs with Read):
 
@@ -77,9 +128,13 @@ bun scripts/render.ts stills --t 3.1 --samples auto            # with motion blu
 bunx tsc --noEmit -p tsconfig.json                             # typecheck
 ```
 
-Check each frame against the craft checklist: nothing important outside the safe area (`s` in the preview shows it), text readable at phone size and held long enough, contrast, no collisions or overflow, the accent used sparingly, cuts on beats, and every settled frame postable. The render script prints `SCENE ERRORS` and browser errors: read them. For motion you can't judge from stills, render a short clip (`video --from 2 --to 5 --samples 4` is a fast draft) and pull frames with ffmpeg, or ask the user to watch the live preview (`bun run dev`, then http://localhost:5173/?t=2).
+For motion you can't judge from stills, render a short draft (`video --from 2 --to 5 --samples 4`), pull frames with ffmpeg, or ask the user to watch the live preview (`bun run dev`, then http://localhost:5173/?t=2).
 
-### 5. Render and deliver
+### 9. Art-director review: score it, then raise the weakest thing
+
+Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent that sees only the frames, the treatment and the rubric, not your reasoning) score concept, composition, motion and camera, variety, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. Ship only when every score is 8 or more and the reviewer would put it in a reel. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
+
+### 10. Render and deliver
 
 ```bash
 bun scripts/render.ts video                                     # out/<format>.mp4, adaptive motion blur, BT.709, AAC
@@ -87,31 +142,33 @@ bun scripts/render.ts poster --t <settled-strong-moment>       # renders the pos
 bun scripts/render.ts video --format portrait                  # each extra format (layouts follow SAFE)
 ```
 
-Check every format's contact sheet before its final render: a layout that works in 9:16 can collide in 1:1. Then extract a few frames from the final MP4 (`ffmpeg -ss 3 -i out/vertical.mp4 -frames:v 1 f.png`) and look at them: that is what the audience gets.
+Check every format's contact sheet before its final render, then pull a few frames from the final MP4 and look at them: that is what the audience gets.
 
-Deliver: the MP4s, the poster PNGs (upload them as the Reel cover), `TREATMENT.md`, and a `caption.txt` (1-3 sentences in the brand voice, postable as-is, plus hashtags if the profile has them). Tell the user where everything is, the creative angle in one sentence, and offer to re-cut a scene, try another hook, or make another format. Platform specs: [references/formats.md](references/formats.md).
+Deliver: the MP4s, the poster PNGs (the Reel cover), `BRIEF.md`, `CONCEPTS.md`, `TREATMENT.md`, the review scores, `assets.json`, and a `caption.txt` (1-3 sentences in the brand voice, postable as-is). Tell the user the idea in one sentence, the money shot and where it lands, what you would push further with more time, and offer re-cuts, another concept, or more formats. Platform specs: [references/formats.md](references/formats.md).
 
 ## Laws (every piece, every tone)
 
-- **The hook is the first 1.5 s.** Motion and the message's most striking visual from frame 1; no logo intro, no slow fade from black.
-- **Readable with the sound off.** Most feeds autoplay muted. The words carry the message; any line meant to be read holds settled for ~0.3 s per word (a short label ≥ 0.8 s). Fast in, then hold; never fast in, then gone.
-- **Show the thing.** Real product, real outputs, real copy. No abstract filler, no stock "AI" imagery, no invented claims.
-- **Always moving, never floating.** Something moves in every shot, and big changes land on the beat: snap with strong eases (outExpo, springs), hold, then snap again. No generic screensaver drift.
-- **One accent.** One signal colour carries the eye (the active word, the CTA, the glow). Only it blooms. Type and photos stay crisp.
-- **Safe areas are law.** Text, logos and faces stay inside `SAFE`; photos may bleed to the edge.
-- **Every frame postable.** Freeze anywhere: it should look designed. The poster frame is the strongest settled one.
-- **Deterministic.** Every frame is a pure function of time. No `Math.random()`, `Date.now()` or accumulated state; the export depends on it.
-- **Specific, not generic.** It should be obviously *this* product. "Streamline your workflow" is banned; use the product's own words.
+- **Ambition first.** One strong idea, a money shot, depth, transformation and scale contrast. Never slides.
+- **The hook is the first 1.5 s.** Motion and the most striking visual from frame 1; no logo intro, no fade from black.
+- **Readable with the sound off.** Any line meant to be read holds settled for ~0.3 s per word (a short label ≥ 0.8 s). Fast in, then hold.
+- **Show the thing.** Real product, real outputs, real data, real copy. No invented claims, no stock "AI" imagery.
+- **Always moving, never floating.** Something moves in every shot; big changes land on the beat; snap, hold, snap.
+- **One accent.** One signal colour carries the eye; only it blooms.
+- **Safe areas constrain text, not imagery.** Text, logos and faces stay inside `SAFE`; images, texture and camera moves use the whole frame.
+- **Every frame postable.** Freeze anywhere: it should look designed.
+- **Deterministic.** Every frame is a pure function of time.
+- **Specific, not generic.** It should be obviously *this* product; use its own words, data and look.
+- **On brand, confirmed.** The profile is checked with the user at the brief, and the style frames are approved before animating.
 
 ## Tone presets
 
-A starting point; freeform direction ("a 90s infomercial played straight") refines or overrides it. Details in craft.md.
+A starting point; freeform direction ("a 90s infomercial played straight") refines or overrides it. Every tone still clears the bar: `premium` is restrained, not timid.
 
 | Tone | Feel | Pacing and cuts |
 |---|---|---|
-| `punchy` (default) | confident, clean, energetic | a cut every 1-2 bars; snaps and punch-ins on hits |
-| `premium` | restrained, elegant, lots of space | long holds, slow pushes, soft dips through black |
-| `hype` | loud, fast, ALL CAPS | cuts on beats, flash/zoom cuts, stacked type |
-| `deadpan` | dry, understated; the joke is the calm | few scenes, long holds, hard cuts |
-| `cinematic` | trailer scale, big claims | slow build, dramatic reveals, one huge payoff |
-| `explainer` | clear, friendly, step by step | one feature per scene, UI in motion, arrows and callouts |
+| `punchy` (default) | confident, clean, energetic | a cut every 1-2 bars; snaps, punch-ins and whips on hits |
+| `premium` | restrained, elegant, lots of space | long holds with slow camera moves through depth, material and light |
+| `hype` | loud, fast, ALL CAPS | cuts on beats, flash/zoom cuts, stacked type, scale jumps |
+| `deadpan` | dry, understated; the joke is the calm | few shots, long holds, one absurd precise move |
+| `cinematic` | trailer scale, big claims | slow build, 3D reveals, one huge payoff |
+| `explainer` | clear, friendly, step by step | the real UI in motion, callouts, zooms into detail |

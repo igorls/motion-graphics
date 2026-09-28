@@ -9,10 +9,12 @@ src/project.ts     title, default format, fps, duration, music, fallback bpm
 src/brand.ts       colours, fonts, logo, tagline, CTA: the only place brand values live
 src/timeline.ts    the edit: which scene plays when, placed by bars/beats
 src/scenes/*.ts    one module per scene (+ _shared.ts for motifs every scene reuses)
+src/engine/stage3d.ts  the 3D stage (three.js scene + camera into the HDR pipeline), textPlane, imagePlane
 src/engine/        format/safe areas, gl helpers, post chain, audio data, type helpers, engine
 scripts/render.ts  offline renderer: stills, sheet, video, poster (headless Chrome -> raw frames -> ffmpeg)
 scripts/analyze_audio.py   music -> public/audio.json (uv + librosa)
 scripts/prep_clip.ts       video -> public/clips/<name>/ frame sequence, optional green/blue screen key + QA sheet
+scripts/comfy.ts           ComfyUI batch runner: API workflow + overrides, one job per varied value, downloads + takes.json
 public/            media/, fonts/, audio/, audio.json: everything scenes load by URL
 ```
 
@@ -82,6 +84,7 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - `util.ts`: `prog(x, a, b, ease)`, `ease.*`, `keys(t, [[t, v, ease], ...])` keyframes, `springStep(t, freq, damping)`, `pulse(t, t0, halfLife)`, `window01`, `smoothstep`, `remap`, `lerp`, `mulberry32`, `hash`, `noise1`/`fbm1` (organic drift, handheld camera), `frameIdx`, `hexToLinear`, `rgba(hex, a)`.
 - `type.ts`: `font(spec, px, weight)`, `fitSize(ctx, lines, spec, weight, maxW, maxPx)`, `wrap`, `wrapBalanced`, `glyphLayout(ctx, text)` (per-letter x with kerning), `smart(s)` (typographic quotes).
 - `audio.ts`: `beatAt`, `timeOfBeat`, `barAt`, `timeOfBar`, `nearestBeat`, `nearestDownbeat`, `env(name, t)`, `hit(kind, t, hl)`, `events(kind, t0, t1)`.
+- `stage3d.ts`: `new Stage3D(fov).fog(hex, near, far)` is a three.js scene + perspective camera that renders into the HDR pipeline (motion blur, bloom and grain apply). Each frame: position the camera with `stage.look(x, y, z, tx, ty, tz, roll)` from `f.t` (keys/springs on the beat grid), animate objects, then `comp.draw(r, stage.render(r), out, { mode: 'replace', srgb: false })` and draw 2D layers on top. `textPlane(text, fontSpec, { height, color, glow })` and `imagePlane(img, height)` put type and images in space (unlit, exact colours; `glow` > 1 blooms). Anything three.js offers works: `InstancedMesh` for thousands of objects, `Points` for dust, real geometry with lights (`MeshStandardMaterial` + a light), custom `ShaderMaterial`. See `scenes/flythrough.ts`.
 - `clip.ts`: `await Clip.load(name)` in `init()` (frames from `public/clips/<name>/`, made by `scripts/prep_clip.ts`), then `clip.frame(lt, { speed, mode: 'hold' | 'loop' | 'pingpong', offset })` returns the frame for a local time, or `clip.drawFit(ctx, lt, x, y, w, h, opts)` draws it so the keyed subject's bounding box fits the rect. Draw with `shadowBlur` for a soft shadow cast from its alpha.
 - `scenes/_shared.ts`: `LIN` (brand colours, linear), `glow(key, k)`, `BgField` (the two-tone drifting background with an accent light), `brandFill` (the brand gradient as a fill style). Put the piece's own recurring motif here too.
 
@@ -92,6 +95,11 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - **UI in motion:** screenshot (or render) the real UI into `public/media/`, draw it into a device frame or a rounded card, simulate the cursor as a drawn arrow moving with `keys()`, and fire a `pulse()` ripple on each click.
 - **Mask reveals:** `c.save(); c.beginPath(); <shape>; c.clip(); <draw>; c.restore()`; animate the shape (a growing circle from the click point, a rising rect for a line of type).
 - **Text on a path:** sample the path into points, then `glyphLayout()` for each letter's arc position and rotate by the path angle.
+- **3D fly-through:** items as `textPlane`s at different depths and offsets; camera stops computed per item; `keys()` with a hold then an `inOutCubic` snap per beat; a limited bank into lateral moves; fog for depth; the final stop computed so the hero fills the frame width (portrait frames are narrow). See `scenes/flythrough.ts`.
+- **Type as architecture:** a `textPlane` many times larger than the frame, the camera trucking across its letters at a low angle; cut when a counter (the hole in an O, the gap in an A) fills the frame and becomes the next scene.
+- **Macro to wide:** start with the camera almost touching a detail (a glyph, a pixel grid, a UI element on an `imagePlane`), fov narrow; pull back fast (inExpo then outExpo) to reveal the whole object.
+- **Instanced fields:** `THREE.InstancedMesh` with thousands of boxes/cards whose matrices are set from `f.t` (a wave, a sort, a stream): data made physical. Seed positions with `mulberry32`.
+- **Displacement and glitch:** an `FSPass` that samples the scene texture with offset UVs (noise, a scan band, RGB split) for transitions; drive the strength with `pulse()` on the beat.
 - **Keyed clip with depth:** big type on a layer drawn *before* the clip, the clip with a soft shadow, small type on a layer after it. See `scenes/insert.ts`.
 - **Counters:** `Math.round(lerp(a, b, prog(t, t0, t1, ease.outCubic)))` in tabular mono figures (so the width doesn't jiggle).
 - **Custom transition:** set `handlesTransition = true`, overlap the entries in the timeline, and composite `f.under` yourself using `f.tin` (e.g. the new scene grows out of a circle from the motif's position).

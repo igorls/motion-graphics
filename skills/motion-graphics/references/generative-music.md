@@ -20,10 +20,31 @@ Prefer the most controllable model available. Whatever the family: **analyse eve
 - **Instrumentation and mood:** genre, instruments, production style, in the brand's voice. Instrumental by default for ads (voice-over and on-screen text need the space).
 - **Length:** the piece length plus one bar of tail to trim into.
 
+## Bar maps for common lengths
+
+| Length | Tempo | Bars | A typical map |
+|---|---|---|---|
+| 6-8 s loop | 120-128 | 4 | 1 hook, 2 payoff, 1 end that loops into the start |
+| 15 s | 128 | 8 (15.0 s) | 2 hook, 2 build, 3 payoff, 1 end card |
+| 15 s | 96 | 6 (15.0 s) | 2 hook, 2 payoff, 2 end (slower, premium) |
+| 20 s | 120 | 10 (20.0 s) | 2 hook, 2 build, 4 payoff, 2 end |
+| 30 s | 128 | 16 (30.0 s) | 2 hook, 4 story, 2 build, 6 payoff, 2 end |
+
+## Composing an original motif
+
+Never reuse an example melody (the adapters' scores only show the notation). Compose from the piece's idea:
+
+1. **Derive the rhythm from the piece.** The syllables of the product name or the hook line ("WORM-D-B" = long, short, short), the rhythm of the product's own sound (keystrokes, a printer's pins, a notification), or the visual rhythm of the money shot.
+2. **Pick a scale and register for the mood.** Minor pentatonic or Dorian for driving tech, Lydian for wonder and lift, major with added 6ths for warm and friendly, a single repeated note with moving harmony for tension. Keep the motif within an octave.
+3. **Write a 1-2 bar motif** of 4-7 notes with one leap and one repeated note: that's what makes it memorable.
+4. **Develop it across sections, don't repeat it:** state it thin in the intro (single notes, space), sequence it up a step in the build, state it full and high in the payoff (octave up, longer notes, harmonised by the chords), and end on a held tone that resolves (or deliberately doesn't).
+5. **Harmony serves the edit:** a static or pedal chord under the hook (tension), a rising progression into the drop, the strongest cadence on the end card.
+6. **Write two contrasting score drafts** (e.g. different motif or scale), render takes of both, and let the listening decide.
+
 ## Writing a score (score-conditioned models)
 
 - One section per scene group, named (`% intro`, `% pre-chorus`, `% chorus`, `% outro`…). Bar counts exactly as the bar map.
-- Melody in the instrument voice, chords as symbols; keep it simple and singable: a 1-2 bar motif developed across sections beats a busy line.
+- Melody in the instrument voice, chords as symbols; the motif from the method above, developed per section.
 - End with an explicit **outro**: a held final chord (or a stop). Models tend to keep going after the score ends (improvising until the duration cap), so the outro gives a clean place to cut.
 - Set the model's duration cap to the score's length plus a bar or two, and trim.
 

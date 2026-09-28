@@ -8,8 +8,11 @@ Write `TREATMENT.md` before any scene code. It is the brief every scene is check
 # <Piece title> — treatment
 
 ## The idea
-One paragraph: the organising concept, the recurring motif, what the viewer should feel and remember.
+One paragraph: the organising concept (the chosen one from CONCEPTS.md, and why it beat the other two), the recurring motif, what the viewer should feel and remember.
 Name the single message (what someone could repeat after one view).
+
+## Money shot
+The one frame people will screenshot: what's in it, where it lands (bar/beat), and why it's surprising. It's also the poster.
 
 ## Deliverables
 Formats (9:16 / 4:5 / 1:1 / 16:9), length, fps, music (track + licence) or silent, where it runs (organic post, paid ad, site hero).
@@ -23,14 +26,18 @@ Preset + freeform direction. Three adjectives it IS, three it is NOT.
 - Light and texture: bloom (accent only), grain, vignette, any inversion scenes.
 - Motif: the recurring element and how it travels between scenes.
 
-## Scenes
-| # | id | window (bars) | on screen | motion | out |
-|---|----|---------------|-----------|--------|-----|
-| 1 | hook | 0 → 2 | ... | words slam on beats 1-3, accent word glows | whip up, hard cut on bar 2 |
-| 2 | reveal | 2 → 5 | real before/after pair #3 | divider teases 1/3, sweeps on bar 4 downbeat | cut |
-| 3 | end | 5 → end | logo, tagline, CTA | lands on beats, then holds 1.5 s+ | (poster) |
+## Shot list
+(The rows below illustrate the level of detail for a hypothetical dot-matrix concept; your shots come from your own concept.)
 
-Then a short paragraph per scene when the table isn't enough: the specific visual pun, the exact words and when each lands, the camera, the hit points.
+| # | id | bars | shot size | camera | depth layers (front / subject / back) | on screen | on the beat | out |
+|---|----|------|-----------|--------|---------------------------------------|-----------|-------------|-----|
+| 1 | hook | 0 → 2 | extreme macro | slow push, then pull-back reveal | pins blurred / ribbon + dots / paper grain | the first word being struck dot by dot | each word lands on a beat | whip up (motion blur covers the cut) |
+| 2 | stream | 2 → 4 | wide, 3D | fly-through past the cascading fanfold | loose sheets / the stream of real names / fogged machine | 52 procedure names pouring past | camera snaps between groups | match cut on the stamp |
+| 3 | end | 4 → end | medium, top-down | slow crane down, settles | torn edge / sheet / desk texture | wordmark, line, CTA | CTA lands on the last downbeat | (poster) |
+
+Check the list before building: shot sizes and layouts change at every cut; at least one shot moves through real depth; at least one thing transforms; every transition carries an idea; the money shot is in it.
+
+Then a short paragraph per shot when the table isn't enough: the specific visual pun, the exact words and when each lands, the camera path, the hit points.
 
 ## Copy
 Every on-screen line, exactly as it will appear, with its scene. Count words vs. hold time (~0.3 s/word).

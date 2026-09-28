@@ -6,6 +6,7 @@ A worked example of [generative-video.md](../generative-video.md). Verified on C
 
 - Gallery templates: `video_fastvideo_fasth3_t2v` (FastH3 8-step distilled, text-to-video, fastest), `video_minimax_h3_t2v`, `video_minimax_h3_i2v`, `video_minimax_h3_i2v_continuation`, `video_minimax_h3_multiframe_reference` (up to 4 reference frames on the timeline), `video_minimax_h3_r2v` (reference images/videos/audio), `video_minimax_h3_fun_controlnet_union` (pose/depth/edge control). The distilled FastH3 checkpoint does text-to-video only; image-conditioned tasks use the base H3 checkpoints (first/last-frame `fl2va`, reference `ref2va`).
 - Files (FastH3): `fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors` (diffusion_models), `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` (text_encoders), `minimax_h3_video_vae_int8_convrot.safetensors` + `minimax_h3_audio_vae_fp32.safetensors` (vae). A template's model names may not match local files (different quantisations); check with the template's local check and point the loader at what's installed.
+- The gallery templates are UI-format (with subgraphs). Run them through an MCP/CLI wrapper that accepts UI exports (comfy-cli's `comfy run`, comfy-mcp `run_workflow`), or open them in ComfyUI and use Export (API) to get a graph `scripts/comfy.ts` can batch.
 - Useful slots in the FastH3 template: `105.prompt`, `143.aspect_ratio` (`9:16 (Portrait Widescreen)`…), `143.megapixels`, `105.value_1` (duration in seconds), `105.noise_seed`, `92.filename_prefix`.
 
 ## Constraints

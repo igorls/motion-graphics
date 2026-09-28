@@ -40,7 +40,7 @@ The keyer is a colour-difference matte (green excess over max(red, blue), normal
 - Fit actions to beats with `speed` and `clipStart` params: if the object settles at 2.6 s in the clip and should settle on beat 4 of the scene, `speed = 2.6 / (timeOfBeat(b0 + 4) - start)`.
 - Resolution: most video models output ~720-1080 px on the short edge. Keep a clip at or below its native size on screen, or upscale it with a video upscaler before prep for full-frame use. Never stretch a 768 px plate to a 1080×1920 background without an upscale and a check.
 - Memory: frames are preloaded (width × height × 4 bytes each). Trim clips to what's used and scale them to their display size (`--width`).
-- Generate several seeds and pick the best motion; motion quality varies far more between seeds than image quality does.
+- Generate several seeds and pick the best motion; motion quality varies far more between seeds than image quality does (`scripts/comfy.ts --vary <seed input>=1,2,3` on ComfyUI).
 
 ## Provenance
 

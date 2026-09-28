@@ -6,9 +6,13 @@ A worked example of [generative-music.md](../generative-music.md). Verified on C
 
 - Template `audio_yue2_text2music` (ComfyUI gallery). Core nodes: `YuE2GenerateABC` (style + lyrics → ABC score), `YuE2GenerateMusic` (style + lyrics + ABC → conditioning + seconds), `EmptyYuE2LatentAudio`, `KSampler` (32 steps, `dpm_2`, `sgm_uniform`, cfg 1), `VAEDecodeAudio`. Checkpoint `yue2_3b_int8_convrot.safetensors` (checkpoints). Output 48 kHz stereo.
 - The YuE team's own agent skill (github.com/multimodal-art-projection/YuE, `skills/yue2-music/`) documents the ABC dialect, instrumental conversion and covers. Read its `references/abc-editing.md` before writing complex scores.
-- A minimal API-format graph that skips the planner and renders a score you wrote: [`assets/comfyui/yue2_score_to_music_api.json`](../../assets/comfyui/yue2_score_to_music_api.json). Set node 2's `style`, `lyrics`, `abc`, `seed`, `max_duration`; node 7's `filename_prefix`. Submit with the ComfyUI API (`POST /prompt`) or an MCP/CLI wrapper, then fetch the file from `/view`.
+- A minimal API-format graph that skips the planner and renders a score you wrote: [`assets/comfyui/yue2_score_to_music_api.json`](../../assets/comfyui/yue2_score_to_music_api.json). Set node 2's `style`, `lyrics`, `abc`, `seed`, `max_duration`; node 7's `filename_prefix`. Run takes with the template's batch runner, e.g.
+  `bun scripts/comfy.ts <skill-dir>/assets/comfyui/yue2_score_to_music_api.json --out gen/music --set-file 2.abc=music/score.abc --set 2.style="Instrumental, ..." --set 2.lyrics="[intro]\n\n[chorus]" --set 2.max_duration=17 --vary 2.seed=11,23,37,58`
+  (measured: ~11-14 s per 12 s take including queueing).
 
 ## Writing the score (ABC, the native dialect)
+
+**Format example only: do not reuse these notes.** Compose each piece's motif with the method in [generative-music.md](../generative-music.md#composing-an-original-motif).
 
 ```abc
 X:1

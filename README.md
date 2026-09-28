@@ -22,12 +22,12 @@ Then ask for a motion piece: "make a 12-second Reel announcing X".
 
 ## Layout
 
-- `skills/motion-graphics/SKILL.md`: the workflow and the laws.
-- `skills/motion-graphics/references/`: craft (motion, type, colour, transitions, anti-slop), treatment template, engine API, music and sync, generative music and video (model-agnostic), formats and delivery, brand profiles.
+- `skills/motion-graphics/SKILL.md`: the workflow (brief interview, three concepts, shot list, style frames, build, art-director review, render) and the laws.
+- `skills/motion-graphics/references/`: craft (the bar, shot vocabulary, composition, motion, type, colour, transitions, the 5/10 anti-patterns), the art-director review rubric, treatment and shot-list template, engine API, music and sync, generative music and video (model-agnostic), formats and delivery, brand profiles.
 - `skills/motion-graphics/references/adapters/`: worked examples for specific models (YuE2 music and MiniMax H3 video on ComfyUI). Add one per model you use.
 - `skills/motion-graphics/assets/comfyui/`: API-format workflows the adapters refer to.
 - `skills/motion-graphics/profiles/`: brand profiles. `profiles/local/` is gitignored: keep your own or clients' brands there.
-- `skills/motion-graphics/template/`: the engine, the render and clip-prep scripts, and four example scenes, copied into each new piece.
+- `skills/motion-graphics/template/`: the engine (2D layers, a three.js 3D stage, shaders, keyed clips, film post), the render, clip-prep and ComfyUI batch scripts, and five example scenes, copied into each new piece.
 - `dogfood/` (gitignored): scratch pieces made while testing the skill.
 
 ## Dogfooding
