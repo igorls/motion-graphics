@@ -9,6 +9,13 @@
 
 Run from the project root:
   uv run --project scripts python scripts/analyze_audio.py public/audio/music.mp3 [--out public/audio.json]
+
+When you composed the music (a score), you know the tempo and the bar map; say so and the grid is exact:
+  ... --bpm 120 --sections "intro:0,build:4,drop:6,outro:10"
+  --bpm N           use the score's tempo; only the phase (where beat 1 falls) is fitted to the audio
+  --first-beat S    force beat 1 at S seconds (e.g. a measured lead-in); implies nothing else
+  --sections MAP    name:bar pairs; reports where each section really starts (the biggest energy step
+                    within a beat of the planned downbeat) and writes "sections" into audio.json
 """
 import argparse
 import json
@@ -25,6 +32,11 @@ def norm(x):
     x = np.nan_to_num(np.asarray(x, dtype=float))
     hi = np.percentile(x, 98) if x.size else 0
     return np.clip(x / hi, 0, 1) if hi > 1e-9 else np.zeros_like(x)
+
+
+def uniform_smooth(x, n):
+    k = np.ones(n) / n
+    return np.convolve(x, k, mode="same")
 
 
 def band_env(S, freqs, lo, hi):
@@ -44,6 +56,9 @@ def main():
     ap.add_argument("--out", default="public/audio.json")
     ap.add_argument("--beats-per-bar", type=int, default=4)
     ap.add_argument("--downbeat-offset", type=int, default=None, help="force which beat (0..n-1) is the downbeat")
+    ap.add_argument("--bpm", type=float, default=None, help="known tempo (from the score): fit only the phase")
+    ap.add_argument("--first-beat", type=float, default=None, help="force the first beat at this time (s)")
+    ap.add_argument("--sections", default=None, help='bar map, e.g. "intro:0,build:4,drop:6"')
     a = ap.parse_args()
 
     y, _ = librosa.load(a.audio, sr=SR, mono=True)
@@ -68,6 +83,19 @@ def main():
             beats = np.arange(first, dur, period)
             tempo = 60.0 / period
 
+    if a.bpm or a.first_beat is not None:
+        period = 60.0 / (a.bpm or tempo)
+        if a.first_beat is not None:
+            first = a.first_beat % period
+        else:
+            # phase that best lines the grid up with onsets (1 ms search over one period)
+            env_t = librosa.frames_to_time(np.arange(len(onset_env)), sr=SR, hop_length=HOP)
+            cands = np.arange(0, period, 0.001)
+            score = [np.interp(np.arange(c, dur, period), env_t, onset_env).sum() for c in cands]
+            first = float(cands[int(np.argmax(score))])
+        beats = np.arange(first, dur, period)
+        tempo = 60.0 / period
+
     kick, _ = band_onsets(low)
     snare, _ = band_onsets(mid)
     hat, _ = band_onsets(high, delta=0.12)
@@ -84,6 +112,26 @@ def main():
         off = int(np.argmax(strength))
     downbeats = beats[off::n]
 
+    sections = []
+    if a.sections:
+        # energy per frame (low + mid), smoothed; a section starts where it steps up or down the most
+        e = uniform_smooth(np.log1p(norm(low) + norm(mid)), 5)
+        step = np.abs(np.diff(e, prepend=e[0]))
+        beat_len = 60.0 / tempo
+        print(f"{'section':<12}{'bar':>4}{'planned':>10}{'measured':>10}{'off (ms)':>10}")
+        for item in a.sections.split(","):
+            name, bar = item.split(":")
+            bar = int(bar)
+            if bar >= len(downbeats):
+                print(f"{name:<12}{bar:>4}  (past the end of the audio)")
+                continue
+            planned = float(downbeats[bar])
+            lo, hi = int((planned - beat_len) * FPS), int((planned + beat_len) * FPS)
+            lo, hi = max(lo, 1), min(hi, len(step) - 1)
+            measured = (lo + int(np.argmax(step[lo:hi]))) / FPS if hi > lo else planned
+            print(f"{name:<12}{bar:>4}{planned:>10.2f}{measured:>10.2f}{(measured - planned) * 1000:>10.0f}")
+            sections.append({"name": name, "bar": bar, "start": round(planned, 4), "measured": round(measured, 4)})
+
     out = {
         "duration": round(dur, 4),
         "bpm": round(tempo, 3),
@@ -92,6 +140,7 @@ def main():
         "envFps": FPS,
         "env": {k: [round(float(v), 3) for v in norm(e)] for k, e in {"rms": rms, "low": low, "mid": mid, "high": high}.items()},
         "onsets": {"kick": kick, "snare": snare, "hat": hat, "any": anyo},
+        "sections": [{"name": x["name"], "start": x["start"]} for x in sections],
     }
     with open(a.out, "w") as f:
         json.dump(out, f, separators=(",", ":"))

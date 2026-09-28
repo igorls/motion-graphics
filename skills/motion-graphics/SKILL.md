@@ -95,7 +95,7 @@ cp -r <skill-dir>/template <out-dir>        # then, in <out-dir>:
 bun install
 ```
 
-Fill `src/brand.ts` from the brand profile (fonts into `public/fonts/`, logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). With music: `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` writes `public/audio.json` ([references/audio.md](references/audio.md); add `--downbeat-offset 0` when you composed the music and bar 1 starts on its first beat). Without music the grid comes from `project.bpm`. Clips go in `public/clips/` via `scripts/prep_clip.ts`.
+Fill `src/brand.ts` from the brand profile (fonts into `public/fonts/`, logo and media into `public/media/`), set `src/project.ts` (title, format, fps, duration, music, bpm). With music: `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` writes `public/audio.json` ([references/audio.md](references/audio.md); when you composed the music, pass the score's truth: `--bpm <tempo> --downbeat-offset 0 --sections "intro:0,drop:6,..."` and check the measured section starts it prints). Without music the grid comes from `project.bpm`. Clips go in `public/clips/` via `scripts/prep_clip.ts`.
 
 The template's example scenes are starting points that each show one technique: `hook` (kinetic type on beats), `reveal` (before/after wipe), `insert` (keyed clip with type behind and in front), `flythrough` (3D camera through depth), `assemble` (a wow moment: thousands of pieces lock into the name on the beat), `lookdev` (a material turntable, a tool), `endcard`. Read them, then write this piece's own scenes; a piece assembled from unmodified examples is a 5/10.
 
@@ -111,7 +111,7 @@ Then show them to the user (send the images and the lookdev still, or give their
 
 ### 7. Generate media (when models are available)
 
-Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) and pick the most controllable model for each job. Generation is non-deterministic, so generate **assets** once, freeze them into `public/`, and keep the render deterministic.
+Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) and pick the most controllable model for each job. Ask before using shared resources (a GPU another service is using, a live engine you'd query for real data, paid APIs) and say how much you'll use. Generation is non-deterministic, so generate **assets** once, freeze them into `public/`, and keep the render deterministic.
 
 - **Music:** compose to the edit. With a score-conditioned model, write an *original* score to the bar map: a motif that comes from this piece's idea, developed across sections ([references/generative-music.md](references/generative-music.md) has the method; never reuse an example melody). Generate 3-4 takes, analyse each, have the user listen to the best, then trim, normalise and lock the grid.
 - **Clips:** prefer image-to-video from real product imagery; for inserts, generate on a flat green (or blue) screen, prep with `bun scripts/prep_clip.ts <video> --name <n> --key auto` and **look at the QA sheet**. Several seeds; keep the best motion. [references/generative-video.md](references/generative-video.md)
