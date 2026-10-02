@@ -79,10 +79,11 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - **Linear HDR colour.** Scene targets are half-float linear. Canvas2D layers are sRGB and converted on composite. Values over 1 bloom: draw a glow shape in white on its own layer and composite it with `{ mode: 'add', tint: glow('accent', 2) }`.
 - **Preload** images and heavy layout in `init()`, not in `render()`.
 - **Budget:** 2-3 `Layer2D`s per scene (each upload costs a few ms at 1080p). Aim for < 30 ms/frame; the export multiplies it by the sample count.
+- **Draw frame-quantized 2D content once per frame.** Text, counters, readouts and panels whose content changes once per output frame (driven by `frameIdx(t)` or by recorded data quantized to the frame) use `layer.clearFor(frameIdx(t))`: it returns `null` when the layer is already drawn for that frame, so you skip drawing, and `upload()` reuses the texture on the GPU. Every motion-blur sub-frame of the frame then shares one drawing and one upload. Keep `clear()` for content animated in continuous `t` (entrances, slides): with `clearFor` a moving word stops blurring within its frame. The same applies to Canvas2D textures on 3D planes (`textPlane`-style sheets): keep a per-frame key and set `needsUpdate` only when you redrew.
 
 ### Toolbox
 
-- `gl.ts`: `FSPass(frag, uniforms)` fullscreen GLSL3 pass (gets `vUv`, `FRAG_PX` = fragment position in logical px (y up), `uRes`, and `GLSL_COMMON`: `hash12`, `vnoise`, `fbm`, `sdRoundBox`, `aaFill`, `luma`, `toSRGB`/`toLinear`); `Layer2D` (frame-sized Canvas2D in logical px, `clear()` returns the context, `upload()` returns the texture); `comp.draw(renderer, tex, target, { mode: 'normal'|'add'|'replace', opacity, tint, srgb })`; `makeRT()`, `clearRT()`; `loadImage(url)`, `drawCover(ctx, img, x, y, w, h, zoom, fx, fy)` (object-fit: cover with a push-in and a focus point).
+- `gl.ts`: `FSPass(frag, uniforms)` fullscreen GLSL3 pass (gets `vUv`, `FRAG_PX` = fragment position in logical px (y up), `uRes`, and `GLSL_COMMON`: `hash12`, `vnoise`, `fbm`, `sdRoundBox`, `aaFill`, `luma`, `toSRGB`/`toLinear`); `Layer2D` (frame-sized Canvas2D in logical px, `clear()` returns the context, `clearFor(frameIdx(t))` returns it or `null` when this frame is already drawn, `upload()` returns the texture); `comp.draw(renderer, tex, target, { mode: 'normal'|'add'|'replace', opacity, tint, srgb })`; `makeRT()`, `clearRT()`; `loadImage(url)`, `drawCover(ctx, img, x, y, w, h, zoom, fx, fy)` (object-fit: cover with a push-in and a focus point).
 - `util.ts`: `prog(x, a, b, ease)`, `ease.*`, `keys(t, [[t, v, ease], ...])` keyframes, `springStep(t, freq, damping)`, `pulse(t, t0, halfLife)`, `window01`, `smoothstep`, `remap`, `lerp`, `mulberry32`, `hash`, `noise1`/`fbm1` (organic drift, handheld camera), `frameIdx`, `hexToLinear`, `rgba(hex, a)`.
 - `type.ts`: `font(spec, px, weight)`, `fitSize(ctx, lines, spec, weight, maxW, maxPx)`, `wrap`, `wrapBalanced`, `glyphLayout(ctx, text)` (per-letter x with kerning), `smart(s)` (typographic quotes).
 - `audio.ts`: `beatAt`, `timeOfBeat`, `barAt`, `timeOfBar`, `nearestBeat`, `nearestDownbeat`, `env(name, t)`, `hit(kind, t, hl)`, `events(kind, t0, t1)`, and from the music map: `moment('drop' | 'stop' | 'breakdown' | 'peak' | 'tail', nth?, fallback?)` (drops are ranked, so `moment('drop')` is the wow candidate) and `section(name)`.
@@ -116,12 +117,27 @@ Every exported frame is the average of many sub-frames spread over the shutter (
 
 - `--samples auto` (the default for `video` and `poster`) picks the count per frame: it steps through 4, 12, 36, 108 sub-frames (`--max-samples 324` allows one more step), and after each step compares the new sub-frames' average with the old ones' (worst 2×2 px block, in displayed 8-bit levels). Stepped copies of a moving edge differ between the two sets; a converged streak or a still image does not. It stops when the remaining error is below `--tol` (default 3). In practice still frames stop at 12, ordinary motion at 36, whips and slams at 108. The render prints the histogram (`12:304 36:56 108:30`).
 - `--samples N` takes a fixed N (`4` for quick drafts). `stills` default to 1 sample; pass `--samples auto` to see exactly what the export does to a fast move.
+- Stills, sheets and checks snap their times to frame times (`k/fps`), the only times the video contains. At a time halfway between two frames, the shutter straddles both, and anything quantized with `frameIdx` (readouts, discrete steps, per-frame jitter) shows as a double exposure that the video never has.
 - Post parameters (flash, shake, zoom, fade) are read at one point of the shutter, 1/8 after the frame time, which every sample set includes.
 - What this asks of scenes: output must depend on `f.t` only (sub-frames render out of order and in any number), and per-frame jitter is seeded with `frameIdx(t)`. Noise that changes with continuous `t` gets resampled in every sub-frame and makes the sampler work harder: seed it with `frameIdx(t)` unless it is meant to blur.
+
+## Render speed
+
+An exported frame costs `sub-frames × (scene render) + readback`. Measured on a 1080p 16:9 piece (a 3D stage with four 2x-resolution Canvas2D sheets on planes, a 2D overlay, bloom): 60 frames took 17.3 s at 4 sub-frames and 6.5 s at 1, about 60 ms per sub-frame plus about 48 ms per frame for readback and transfer. Switching x264 from `slow` to `ultrafast` changed nothing (18.0 s): the encoder is not the bottleneck, the scene is. What to do, in order of effect:
+
+- **Frame-quantized 2D content drawn once per frame** (`clearFor`, above). On that piece it cut a 2 s slice from 17.3 s to 6.5 s, and the busiest slice (all four sheets on screen) from 42.9 s to 13.1 s. Uncompressed stills matched the per-sub-frame render except one 33×9 px patch, off by at most 3 levels. Canvas redraws and texture uploads (with mipmaps, on big sheets) were most of the scene cost.
+- **Fixed low sample counts for drafts** (`--samples 4`), `auto` for the final.
+- **Render only what changed:** `--from/--to` for the chapter you're fixing; stills and strips before videos.
+- **Parallel renders:** frames are pure functions of `t`, so formats (or time chunks, concatenated afterwards) can render in separate processes. On a GPU that also serves other work (a model, a desktop session, another render), ask before running several at once.
 
 ## Output scale
 
 `--scale 2` (or `&scale=2`) renders the same layout at twice the pixels: 2160×3840 for vertical. Everything that is sized in logical px (Layer2D, makeRT, the bloom pyramid) follows. Useful for a 4K YouTube master; Instagram doesn't need it.
+
+## Checking frames
+
+- `sheet --from 12.4 --to 13.6 --every 0.1 --crop x,y,w,h --cell 240 --samples 4`: a motion strip, cropped (logical px) to the element that moves. Contact sheets can't show whether a motion is right (a piece that should fall, a card that should land); a 10 fps strip of the region can.
+- `check --t 6.5,10.9,18 --formats landscape,square`: the same moments in every format, one labelled row per format. Collisions and cut-off footers usually appear in only one format, so check the format you aren't looking at.
 
 ## Debugging
 
