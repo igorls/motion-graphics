@@ -12,6 +12,16 @@ bun scripts/render.ts stills --t <money-shot> --samples auto
 
 Also pull 3-4 frames from a draft MP4 at the moments that matter (hook frame 1, the drop, the money shot, the end card).
 
+Stills can't show motion or pacing, and those are what viewers judge first. Add:
+
+```bash
+bun scripts/render.ts sheet --from 12.4 --to 13.6 --every 0.1 --crop x,y,w,h --cell 240 --samples 4 --out out/strip-<name>.png
+bun scripts/render.ts check --t <the moments that matter> --formats <every format you deliver>
+```
+
+- **A motion strip for every key motion** (10 fps, cropped to the element that moves): whatever is supposed to fall, land, sort, snap or transform. A contact sheet showed a Tetris board at rest in every tile; only a strip showed that its pieces never fell.
+- **A reading-time table** in REVIEW.md: every on-screen claim, its word count, and how long it holds settled (fully in, before it starts to leave). The reviewer can't feel pacing from stills; the table lets them check the ~0.3 s/word rule and the ~4-6 s per new idea.
+
 ## Run it with a fresh reviewer
 
 Get a reviewer with fresh context, and the strongest model available (a smaller reviewer model is a more lenient one), in whichever way your agent supports:
@@ -22,7 +32,7 @@ Get a reviewer with fresh context, and the strongest model available (a smaller 
 
 Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, `TREATMENT.md`, the brand profile, `REVIEW.md` (the previous rounds: scores, notes, what was changed), and this brief. Not your reasoning, not the code. The history keeps reviewers consistent: without it, each fresh reviewer re-litigates the last one's taste. Brief:
 
-> You are the creative director of a top motion design studio reviewing a junior's 15-30 s social piece before it goes to the client. Look at every frame provided. Score each dimension 1-10, where 5 means "competent and forgettable" and 8 means "I'd put it in our reel". Be specific and unsentimental: name frames by timestamp.
+> You are the creative director of a top motion design studio reviewing a junior's 15-45 s social piece before it goes to the client. Look at every frame provided. Score each dimension 1-10, where 5 means "competent and forgettable" and 8 means "I'd put it in our reel". Be specific and unsentimental: name frames by timestamp.
 >
 > 1. **Concept:** is there one clear, ownable idea? Would anyone remember it tomorrow?
 > 2. **Wow:** which moment would you replay or send to someone? Name it by timestamp. If there is none, this is 6 at most, however clean the piece is.
@@ -33,6 +43,7 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 > 7. **Craft:** type (kerning, hierarchy, readability at phone size, calm areas behind headlines), colour discipline, edge quality, timing of holds, transitions.
 > 8. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
 > 9. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting?
+> 10. **First-watch comprehension:** from the frames, the strips and the reading-time table, write in one sentence what a first-time viewer would take away after one watch at 1x, sound off. Then compare it with the message in BRIEF.md. Score how close it is, and name the moment where a viewer would get lost: too fast, too much at once, a borrowed system that doesn't behave like itself, or text that doesn't read over what's behind it.
 >
 > Also check the concept's core device (named in TREATMENT.md): is it clearly visible on screen, or diluted into a generic shot?
 >
@@ -53,6 +64,14 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 - **6-7/10 by the user ("clean, the music matched, but no wow factor"), a "city built from the source code" Reel:** an ownable concept and a portfolio-grade match cut, but Craft sat at 6 for all ten rounds because every fix went to camera and composition, never to the materials; the hook was a plain page for ~4 s; reviewers without the log contradicted each other.
 
 - **8/10 by the user ("the wow factor is there"); reviewer Concept 8 · Wow 8 · Variety 8 · Brand 8, Look 6 · Craft 6, a decision-API debut film:** real per-option probabilities as phosphor ghosts collapsing on the beat, continuous hand-offs between scenes (a brick's core becomes a cube sticker, a 3x3 face unfolds into the chess board). Held back by one flat real-UI desktop beat with generic OS chrome, and a frame 0 thinner than the money shot. Its reviewer said "ship: yes" with four dimensions under 8: the gate, not the reviewer, decides.
+
+- **"Beautiful" by the user, after a series of their notes that the reviewer rounds had not raised; a 40 s launch film for a GPU inference engine ("your chat model is already a decision engine"):** VRAM drawn as a Tetris well, four clients (chat, decisions, Tetris moves, reranking) served by one copy of the weights, from recorded runs. Five reviewer rounds on the first 20 s cut (best: Concept 7 · Wow 7 · Craft 6; below the gate, so the user was asked) flagged collisions, clipped cards and unreadable fine print, but never pacing, comprehension or whether the motion behaved. The user's notes, in order, and what fixed each:
+  - "all too fast" → longer, with a labelled 0.25x slow-motion hook;
+  - "hard to focus on what is going on in the beginning, with all happening at once" → each client introduced alone from its own recorded phase, then all four together;
+  - "not real tetris … the pieces are not falling down" → spawn, gravity, lock, line clear and NEXT, timed so each piece lands on its recorded answer;
+  - "the readability on the text overlays can improve", "sometimes it's mixing too much in the background" → the subject framed whole between the caption and the readout, the world dimmed behind it, opaque panels, haloed captions, plated readouts.
+
+  Reviewers scored from contact sheets, where pacing, comprehension and motion are invisible; the comprehension dimension, the motion strips and the reading-time table above exist because of this piece.
 
 ## Calibration: what a 5/10 looks like
 
