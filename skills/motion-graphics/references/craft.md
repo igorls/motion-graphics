@@ -49,6 +49,10 @@ Plan shots with this vocabulary, and vary it:
 - **Hierarchy in three levels**: one dominant element (huge), a secondary (medium), and details (small, precise annotations). Everything else is texture.
 - **Break the grid on purpose**: an element cropped by the frame edge, type bigger than the frame, a diagonal against the verticals. Tension reads as confidence.
 - **Consecutive shots differ**: size, layout, camera and dominant direction of motion change at every cut.
+- **The subject is the brightest thing in the frame.** When one element is being presented (a panel, a UI, a card), the world around it steps back: dimmer, lower contrast, its resting glow down, while its meaningful events (a flash on each request, a pulse on the beat) still read. Restore it when the shot widens. A bright, busy background beside the subject reads as noise competing with it.
+- **Overlay bands are part of the framing.** If a shot carries a headline band at the top and a readout at the bottom, the subject sits wholly between them, including its footer and its numbers, at the tightest point of every camera move (the end of a push-in, not its start), in every format. A number cut off by the frame edge or covered by a caption was shown and then hidden.
+- **Particles never cross text meant to be read.** Sparks, trails and flying pieces end at a panel's edge or pass behind it; in a close-up on a text panel they usually go.
+- **Panels that carry text are opaque.** A translucent "glass" panel lets the scene's brightest elements and labels read through its text; even 3-4% shows against a dark panel.
 
 ## The idea
 
@@ -56,6 +60,9 @@ Plan shots with this vocabulary, and vary it:
 - **A recurring motif** stitches scenes together and makes transitions feel inevitable: a line of light that draws the chart, then becomes the divider, then underlines the CTA. Hand the motif from shot to shot across cuts (it exits scene A where it enters scene B).
 - **Visual puns and transformations, not illustrations.** Don't draw what the words say; transform one thing into another (a slider becomes a timeline, a photo's edge becomes a chart line, the product's own UI becomes the stage).
 - **Specific over generic.** Use the product's real UI, outputs, words and numbers. If the frame would work for any product, it's filler.
+- **Understood on first watch.** A first-time viewer at 1x, sound off, should be able to say what the piece showed. Spectacle that needs a second viewing to decode is a failure of the message, not a feature. Budget about 4-6 s for each new idea the viewer has to learn (a new kind of panel, a new visual rule, a new claim), on top of reading time.
+- **Introduce, then combine.** When the message is that several things happen together (one engine serving four jobs, one tool replacing three), present each part alone first, long enough to learn what it looks like, then show them together. Shown all at once from the start, the viewer sees noise; shown one by one, the all-at-once shot is the payoff.
+- **Borrowed systems obey their own rules.** When the piece borrows something the audience already knows (Tetris, chess, a chat app, an OS window, a stock ticker), its motion and UI follow that system's grammar: in Tetris a piece spawns at the top, falls row by row, locks, full rows flash and collapse, and there is a NEXT box. Viewers know these rules better than any detail of your product and spot a broken one instantly. Cleverness layered on top (probability outlines over the board, pieces appearing in place) reads as "that's not real Tetris".
 
 ## Motion
 
@@ -68,6 +75,17 @@ Plan shots with this vocabulary, and vary it:
 - **Motion blur is real.** The exporter averages sub-frames over the shutter, so fast moves are allowed and look good; judge them in stills rendered with `--samples 16`, not in the 1-sample preview.
 - **Energy curve.** Hook high, a breath to show the product, build through the highlights, peak on the payoff, then settle on the end card. Don't run at 100% the whole time; contrast is what makes the peak land.
 
+## Recorded data as motion
+
+When the motion shows real recorded events (requests, tokens, moves, scores), the timing is part of the claim:
+
+- **One time map per chapter.** Each chapter plays a recording (its own phase, or the shared one) through an explicit function from video time to recording time. Keep it in one place (a `view(t)`), so every element in the shot reads the same clock.
+- **Every speed other than 1x is labelled on screen** ("▶ 0.25× SLOW MOTION · RECORDED ALONE · t = 0.70 s"), and the snap to real speed is a visible moment. Slow motion is the standard device for showing events faster than the eye: a 58 ms decision at 0.1x lasts 0.6 s.
+- **Stop the clock at the end of the recording.** Don't let a timer run past the last recorded event; end on a recorded summary instead ("■ RUN COMPLETE · 20 MOVES IN 1.21 s").
+- **Keep drawn time separate from recorded time.** Some motion has to be invented to be seen (a 20-30 ms slide and drop after an answer, a flash when a row clears). Keep it short, after the recorded event it illustrates, and never let it move a recorded time. Write down which is which in the treatment.
+- **Readouts step once per output frame.** Counters, timers and labels read the time quantized to the frame (`frameIdx`), so a frame never blends two values, and they render once per frame (`Layer2D.clearFor`, [engine.md](engine.md#render-speed)).
+- **Placeholder data is marked.** A concept built before the real recording exists runs on clearly estimated numbers, with a visible "NOT FOR POSTING" watermark on every frame, and the treatment records the exact command that records the real data and replaces them.
+
 ## Typography
 
 - **Big, tight, confident** display type for the message; a mono or small sans for labels, numbers, UI voice; at most one expressive third face used rarely.
@@ -75,8 +93,8 @@ Plan shots with this vocabulary, and vary it:
 - **Readable on a phone.** At 1080 px wide, body text ≥ 40 px, labels ≥ 32 px, headlines 90-200 px. Test in the contact sheet at thumbnail size: if you can't read it there, it's too small or too brief.
 - **Kerning and punctuation.** Draw whole words when you can (Canvas2D applies kerning); for per-letter animation use `glyphLayout()` so letters sit where the whole word would. Typographic quotes and dashes (’ “ ” … – —) in display text (`smart()`).
 - **Wrap with intent.** Break lines by meaning and balance (`wrapBalanced()`); never leave a lone short word on the last line.
-- **No outlined or haloed type**, no drop shadows as a readability crutch.
-- **Compose calm areas for type, don't patch them with scrims.** Plan the shot so the headline sits over sky, a shadowed wall, a defocused plane, an out-of-focus foreground, or a flat surface in the world; or set the type *in* the world (on a facade, a floor, a screen). A gradient scrim is a last resort for photos you can't re-frame.
+- **Compose calm areas for type, don't patch them with scrims.** Plan the shot so the headline sits over sky, a shadowed wall, a defocused plane, an out-of-focus foreground, or a flat surface in the world; or set the type *in* the world (on a facade, a floor, a screen); or step the world back behind it (see Composition). A gradient scrim is a last resort for photos you can't re-frame.
+- **No outlines, no visible drop shadows.** One exception: overlay text that has to read over a live 3D or data world (a caption over a moving camera, numbers over flashing cells) may carry a soft dark halo: a blur-only shadow in the background colour, invisible as a shape, there to keep edges legible when something bright passes behind. Readouts and labels in a HUD sit on **plates** (dark glass with the piece's edge colour): a plate is part of the design language, not a patch.
 - **Words are part of the image**, not subtitles pasted on top: text rides a curve, is stamped on a card, typed into the product's input field, revealed by the divider.
 
 ## Colour and light
@@ -123,7 +141,10 @@ Purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix co
 - [ ] There's a money shot, and it is the strongest frame in the piece; frame 0 is designed to the same standard.
 - [ ] The concept's core device is clearly on screen, not diluted.
 - [ ] A material language with at least one custom shader; no default grey surfaces ([lookdev.md](lookdev.md)).
-- [ ] Headlines sit on calm areas composed into the shot, not on scrims.
+- [ ] Headlines sit on calm areas composed into the shot (or a world stepped back behind them); no scrims, no outlines.
+- [ ] A first-time viewer can say what the piece showed after one watch at 1x; each new idea gets ~4-6 s; parts are introduced before they are combined.
+- [ ] Anything borrowed from a known system (a game, an app, a UI) moves by that system's rules.
+- [ ] Recorded data: every non-1x speed labelled; the clock stops at the end of the recording; drawn time is separate and short.
 - [ ] The camera moves through depth in at least one shot; shot sizes vary; no two consecutive shots share a layout.
 - [ ] Something transforms; at least one transition carries an idea.
 - [ ] Every frame is designed edge to edge (no leftover empty space).
@@ -132,7 +153,7 @@ Purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix co
 - [ ] The first frame and the first 1.5 s: is it the hook, and is something moving?
 - [ ] Every line readable at phone size, inside `SAFE`, and held ≥ 0.3 s/word once fully in.
 - [ ] Contrast of every text element against what's behind it, for its whole life on screen.
-- [ ] No collisions or overflow in *every* output format (render a sheet per format).
+- [ ] No collisions or overflow in *every* output format (`render.ts check` across formats); each presented subject sits wholly between the overlay bands at the tightest point of its camera move; no particle crosses text.
 - [ ] Cuts on beats; hits land on hits (sheet `--cuts`).
 - [ ] Only the accent glows; type and photos crisp.
 - [ ] Every settled frame postable; poster chosen at a settled, strong moment.
