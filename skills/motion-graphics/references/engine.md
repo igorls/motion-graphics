@@ -5,18 +5,21 @@ The template (`<skill-dir>/template/`) is a small web app: TypeScript + three.js
 ## Layout
 
 ```
-src/project.ts     title, default format, fps, duration, music, fallback bpm
+src/project.ts     title, default format, fps, duration, music, voice, captions, mix, fallback bpm
 src/brand.ts       colours, fonts, logo, tagline, CTA: the only place brand values live
 src/timeline.ts    the edit: which scene plays when, placed by bars/beats
 src/scenes/*.ts    one module per scene (+ _shared.ts for motifs every scene reuses)
 src/engine/stage3d.ts  the 3D stage (three.js scene + camera into the HDR pipeline), lighting, paper, textPlane, imagePlane
 src/engine/looks.ts    materials and custom shaders (look development)
 src/engine/swarm.ts    thousands of instances flying between formations (text, logo, grid, cloud)
+src/engine/voice.ts    voice-over lines placed on the grid (pure: shared by the browser and the scripts)
+src/engine/captions.ts burned-in captions from the voice's word timings (an overlay after post)
 src/engine/        format/safe areas, gl helpers, post chain, audio data, type helpers, engine
 scripts/render.ts  offline renderer: stills, sheet, video, poster (headless Chrome -> raw frames -> ffmpeg)
 scripts/analyze_audio.py   music -> public/audio.json (uv + librosa)
 scripts/prep_clip.ts       video -> public/clips/<name>/ frame sequence, optional green/blue screen key + QA sheet
 scripts/comfy.ts           ComfyUI batch runner: API workflow + overrides, one job per varied value, downloads + takes.json
+scripts/voice.ts           voice-over: voices, design, audition, render takes (word timings, -16 LUFS), cues + SRT
 public/            media/, fonts/, audio/, audio.json: everything scenes load by URL
 ```
 
@@ -110,6 +113,18 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - **Counters:** `Math.round(lerp(a, b, prog(t, t0, t1, ease.outCubic)))` in tabular mono figures (so the width doesn't jiggle).
 - **Custom transition:** set `handlesTransition = true`, overlap the entries in the timeline, and composite `f.under` yourself using `f.tin` (e.g. the new scene grows out of a circle from the motif's position).
 - **Shaders:** backgrounds, light, displacement and glitch as `FSPass`es; sample a previous layer's texture as a uniform to warp it.
+
+## Voice and captions
+
+The craft is in [voice.md](voice.md). The mechanics:
+
+- **The script** is `public/vo/vo.json` (set `project.voice: 'vo/vo.json'`): provider, model, voice, settings, seed, and `lines`, each `{ id, text, direction?, at? | land? | after?, gap?, gain?, caption? }`. `at` is seconds or a grid position (`"bar:4"`, `"bar:4.5"`, `"beat:17"`); `land: { word, at }` starts the line so that word begins on that time; `after: "<id>"` chains it to the previous line plus `gap` (0.25 s).
+- **Takes:** `bun scripts/voice.ts render` writes `public/vo/<id>.wav` (48 kHz stereo, -16 LUFS integrated, peaks under -1 dBFS) and `public/vo/<id>.json` (`words: [{ w, s, e }]` in seconds from the take's start, the text sent, model, voice, settings, seed, request id). `render --only l3` re-takes one line; `render --dry` prints the lines and the character count first.
+- **Placement** is `resolveCues(script, takes, audio)` in `src/engine/voice.ts`, the same function in the browser and in the scripts, so the captions, the preview and the mix always agree. `bun scripts/voice.ts cues` prints each line's span in seconds and bars, its words per second, overlaps, lines past the end, and writes `out/voice.srt`.
+- **Captions** (`project.captions`, default on with a voice): `src/engine/captions.ts` draws one phrase at a time from the word timings (two lines at most, the current word in the accent, a soft plate), through `engine.overlay`, which composites over the finished frame after post, once per output frame: no bloom, grain or blur on them. Restyle that file per piece; keep it readable at phone size.
+- **Preview:** `bun run dev` plays the lines with the music, each from its cue.
+- **The mix** (`render.ts video`): every line inside the render window at its cue, summed into a voice bus; the music lowered by `project.mix.musicDb` and sidechain-ducked from the voice bus by about `duckDb` while someone speaks (attack 40 ms, release 450 ms); a 0.6 s fade at the end and a limiter at -1 dBFS. The finished mix is then brought to -14 LUFS integrated (`--lufs`, or `--no-normalize` to keep it as mixed; video is copied, not re-encoded) and the render prints the loudness and true peak.
+- **Scenes can read the voice too:** time a reveal to a word with the cues (the engine exposes them as `window.__mg.voice`; for a scene, load them with `loadVoice(project.voice, audio)` in `init()`).
 
 ## Motion blur
 

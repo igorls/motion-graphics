@@ -42,7 +42,7 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 > 6. **Look and materials:** are the surfaces designed (a material language, custom shading, light that sculpts), or default grey renders? Does frame 0 look as designed as the money shot?
 > 7. **Craft:** type (kerning, hierarchy, readability at phone size, calm areas behind headlines), colour discipline, edge quality, timing of holds, transitions.
 > 8. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
-> 9. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting?
+> 9. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting? If there is a voice: is it cast for this brand (not a default narrator), performed rather than read, saying what the picture can't (not describing it), placed so its key words land on the beat and leave the peak to the music, and mixed so every word is clear over the bed? Is the piece still complete with the sound off (captions or on-screen type)?
 > 10. **First-watch comprehension:** from the frames, the strips and the reading-time table, write in one sentence what a first-time viewer would take away after one watch at 1x, sound off. Then compare it with the message in BRIEF.md. Score how close it is, and name the moment where a viewer would get lost: too fast, too much at once, a borrowed system that doesn't behave like itself, or text that doesn't read over what's behind it.
 >
 > Also check the concept's core device (named in TREATMENT.md): is it clearly visible on screen, or diluted into a generic shot?

@@ -133,7 +133,7 @@ When the motion shows real recorded events (requests, tokens, moves, scores), th
 
 ## Avoid (instant "AI slop")
 
-Purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix code rain, lens-flare soup, generic particle nebulae, floating 3D blobs, stock "AI" imagery, waveform/equaliser bars as decoration, everything centred, every element fading in the same way, emoji, text that flashes too fast to read, claims the product can't back up, copying another brand's or artist's look.
+A default narrator voice reading the on-screen text over wall-to-wall music, purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix code rain, lens-flare soup, generic particle nebulae, floating 3D blobs, stock "AI" imagery, waveform/equaliser bars as decoration, everything centred, every element fading in the same way, emoji, text that flashes too fast to read, claims the product can't back up, copying another brand's or artist's look.
 
 ## Checklist before any render
 

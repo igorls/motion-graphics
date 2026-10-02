@@ -36,4 +36,6 @@ H.264 High profile, yuv420p, BT.709 tagged, CRF 18 (`--crf`), `+faststart`, AAC 
 
 ## Captions and copy
 
+With a voice-over, deliver `out/voice.srt` (from `bun scripts/voice.ts cues`) beside the MP4, and check the mix line the render prints: about -14 LUFS integrated, true peak under -1 dBFS.
+
 `caption.txt`: 1-3 sentences in the brand voice, specific, no "excited to share"; a CTA if it's an ad; hashtags only if the brand profile uses them. Burned-in text in the video already works muted; for spoken words also provide an SRT.

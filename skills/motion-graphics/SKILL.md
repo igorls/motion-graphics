@@ -1,6 +1,6 @@
 ---
 name: motion-graphics
-description: Design and render advanced, code-driven motion graphics videos (social ads, Instagram Reels/Stories/feed posts, TikToks, product launch and feature videos, kinetic typography, before/after reveals, beat-synced edits, animated end cards) as MP4s. Every frame is a deterministic function of time in a small WebGL + Canvas2D engine, so the browser preview and the offline render match, with real motion blur, bloom and grain, cuts snapped to the music's beats, and multi-format output (9:16, 4:5, 1:1, 16:9) that respects platform safe zones. Works with any generative audio and video models the agent can reach (music composed to the edit's bar map, generated video clips used as plates or green-screen inserts keyed and composited into the design). Use when someone asks for a motion graphic, animated ad, promo/launch video, Reel, animated post, kinetic type, a "video from this", or wants product visuals turned into a short video. Brand-neutral; brand looks come from a profile file.
+description: Design and render advanced, code-driven motion graphics videos (social ads, Instagram Reels/Stories/feed posts, TikToks, product launch and feature videos, kinetic typography, before/after reveals, beat-synced edits, animated end cards, voice-over narration with burned-in captions) as MP4s. Every frame is a deterministic function of time in a small WebGL + Canvas2D engine, so the browser preview and the offline render match, with real motion blur, bloom and grain, cuts snapped to the music's beats, and multi-format output (9:16, 4:5, 1:1, 16:9) that respects platform safe zones. Works with any generative audio and video models the agent can reach (music composed to the edit's bar map, generated video clips used as plates or green-screen inserts keyed and composited into the design). Use when someone asks for a motion graphic, animated ad, promo/launch video, Reel, animated post, kinetic type, a "video from this", or wants product visuals turned into a short video. Brand-neutral; brand looks come from a profile file.
 ---
 
 # Motion graphics
@@ -37,6 +37,7 @@ Find or infer what you can; the brief interview covers the rest. Defaults in bra
 | Duration | 10-20 s for ads (hook in the first 1.5 s), 6-10 s for a feed loop, up to 30 s for a launch piece; longer when the viewer has to learn several new ideas (about 4-6 s per new idea, plus reading time) |
 | Music | a user-supplied track; or generated with a music model you can reach, composed to the edit ([references/generative-music.md](references/generative-music.md)); or silent |
 | Video clips | optional: generated with a video model you can reach, as plates or keyed inserts ([references/generative-video.md](references/generative-video.md)) |
+| Voice-over | optional: a narrator (or characters) from a speech model you can reach, cast and directed with the user, placed on the music and captioned ([references/voice.md](references/voice.md)); it deepens the message, never carries its only copy |
 | Real media | the product's own UI, outputs, screenshots, copy: find them in the repo/site |
 | Output folder | `./motion/<slug>/` in the current project, or where the user says |
 
@@ -64,7 +65,7 @@ Ask what the material can't tell you. Pick the questions that matter for this pi
 - **References:** pieces, brands, films or motion studios they love (and hate) for this; offer 2-3 reference directions to react to if they have none.
 - **Must include / must avoid:** product shots, UI, people, claims, logos, legal lines.
 - **Boldness:** on a scale from "safe and clean" to "make people ask how it was made", where should this land? (Recommend the bold end unless the brand says otherwise.)
-- **Sound:** music taste and energy, generated or supplied track, voice-over or not.
+- **Sound:** music taste and energy, generated or supplied track; voice-over or not, and if so: the language(s), the voice's character in three adjectives (and three it must not be), and whether the piece plays with sound on where it runs.
 - **Formats and deadline;** how involved they want to be (review every checkpoint, or just the final).
 
 Write the answers into `BRIEF.md`; it is what concepts and reviews are judged against.
@@ -98,6 +99,7 @@ The edit is built on the music, and you can't hear it, so the music comes before
 2. **Map it:** `uv run --project scripts python scripts/analyze_audio.py public/audio/<file>` (for a score you wrote, add `--bpm <tempo> --downbeat-offset 0 --sections "intro:0,drop:6,..."`). Besides `public/audio.json` it writes **`MUSIC-MAP.md`** (tempo and grid, detected sections with energy, a per-bar table, moments: drops, stops, builds, breakdowns, the peak, the tail, and edit suggestions: the wow-moment candidate, cut points, calm bars for reading, the strongest hits) and **`out/music-map.png`** (the spectrogram with bars, sections and events). Read the map and look at the picture; for several takes, map each and compare.
 3. **Confirm by ear:** send the user the best take(s) with one line on what the map shows ("drop after a stop at 12.04 s, calm bars 9-11 for the end card"). Their ear and the map together decide the take.
 4. **The map is the truth for the edit.** Plan every window on it, not on what the score intended: models drift, and a picked take can put its peak a bar away from the plan. The timeline reads it: `au.moment('drop')` (the map's wow candidate), `au.section('break')`, `au.timeOfBar(n)`.
+5. **If the piece has a voice** ([references/voice.md](references/voice.md)): write the lines for the ear (say what the picture can't; a third of the runtime without voice), cast it (`bun scripts/voice.ts voices` / `design`, then `audition` three voices on the same two lines and let the user choose by ear), render the takes (`render`, after `render --dry` shows the cost), and place them on the map (`at`, `land` a key word on a beat, or `after` the previous line; `cues` prints where everything lands). Music-led pieces fit the lines into the map's windows; voice-led pieces (explainers, stories) render the voice first and cut the music and scenes to it. Leave the drop, the wow moment and the first second of the end card to the music.
 
 ### 6. Treatment and shot list, on the music map
 
@@ -110,7 +112,7 @@ Write `TREATMENT.md` ([references/treatment.md](references/treatment.md)): the i
 - When the message is that several things happen together, **introduce each one alone, then combine them** (each part long enough to learn what it looks like; the all-together shot is the payoff). Showing everything at once from the start reads as noise.
 - Events faster than the eye (a 50 ms decision, a token stream) get **labelled slow motion** ("▶ 0.25× SLOW MOTION"), then a visible snap to real speed. Recorded data follows [craft.md](references/craft.md#recorded-data-as-motion): a time map per chapter, the clock stops when the recording does, drawn time kept separate from recorded time.
 
-If the piece uses generated clips, the treatment also holds a **clip shot list** (role, subject, motion, screen colour, length).
+If the piece uses generated clips, the treatment also holds a **clip shot list** (role, subject, motion, screen colour, length). If it has a voice, the Copy section holds the **voice script**: every line as spoken, its direction, where it lands (bar or the word it lands on a beat), and its words per second.
 
 ### 7. Look development, the wow moment, and style frames: design before animating
 
@@ -131,7 +133,9 @@ Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) 
 - **Batch runs on ComfyUI:** `bun scripts/comfy.ts` submits an API-format workflow with overrides and one job per varied value (seeds, prompts), waits and downloads the outputs with a provenance record.
 - **Provenance:** record every generated asset in `assets.json` (model, checkpoint, workflow, prompt or score, seed, date, prep command). Model licences and permitted uses are the user's call.
 
-Worked examples for specific models: `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI).
+- **Voice:** `bun scripts/voice.ts render` writes one mastered take per line (`public/vo/<id>.wav`) with its word timings; the engine places the lines, draws captions from them and the render mixes them over a ducked bed. Send new takes to the user to hear before building on them.
+
+Worked examples for specific models: `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI, ElevenLabs voice).
 
 ### 9. Build scene by scene, and look at every one
 
@@ -170,7 +174,7 @@ bun scripts/render.ts video --format portrait                  # each extra form
 
 Check every format's contact sheet before its final render, then pull a few frames from the final MP4 and look at them: that is what the audience gets.
 
-Deliver: the MP4s, the poster PNGs (the Reel cover), `BRIEF.md`, `CONCEPTS.md`, `MUSIC-MAP.md`, `TREATMENT.md`, the review scores, `assets.json`, and a `caption.txt` (1-3 sentences in the brand voice, postable as-is). Tell the user the idea in one sentence, the money shot and where it lands, what you would push further with more time, and offer re-cuts, another concept, or more formats. Platform specs: [references/formats.md](references/formats.md).
+Deliver: the MP4s, the poster PNGs (the Reel cover), `out/voice.srt` when there is a voice, `BRIEF.md`, `CONCEPTS.md`, `MUSIC-MAP.md`, `TREATMENT.md`, the review scores, `assets.json`, and a `caption.txt` (1-3 sentences in the brand voice, postable as-is). Tell the user the idea in one sentence, the money shot and where it lands, what you would push further with more time, and offer re-cuts, another concept, or more formats. Platform specs: [references/formats.md](references/formats.md).
 
 ## Laws (every piece, every tone)
 

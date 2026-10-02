@@ -18,6 +18,7 @@ Prefer the most controllable model available. Whatever the family: **analyse eve
 - **Bar map:** sections in bars, matching the scene windows: e.g. intro 2 → build 2 → drop 4 → outro 1. Put the biggest musical change (the drop) where the biggest visual change lands.
 - **Energy per section:** sparse/building/full/resolving, and where the stops or risers go.
 - **Instrumentation and mood:** genre, instruments, production style, in the brand's voice. Instrumental by default for ads (voice-over and on-screen text need the space).
+- **Space for a voice:** if the piece has a voice-over, say where it speaks (bars) and ask for a sparser mid-range there, no lead melody under speech; keep the drop and the peak voice-free. Composed space beats any amount of ducking.
 - **The arrangement mirrors the reveal.** When the edit introduces parts one at a time and then shows them together, let each part bring in a new instrument on its chapter's downbeat, and save the full band (and the drums, if they're held back) for the all-together moment. The structure becomes audible, and the payoff sounds like one.
 - **Length:** the piece length plus one bar of tail to trim into.
 
