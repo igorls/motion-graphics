@@ -12,8 +12,10 @@ const API = 'https://api.elevenlabs.io';
 function apiKey() {
   const env = process.env.ELEVENLABS_API_KEY?.trim();
   if (env) return env;
-  const file = process.env.ELEVENLABS_API_KEY_FILE ?? path.join(os.homedir(), '.config', 'elevenlabs', 'api_key');
-  if (existsSync(file)) { const k = readFileSync(file, 'utf8').trim(); if (k) return k; }
+  const dir = path.join(os.homedir(), '.config', 'elevenlabs');
+  // Windows Notepad saves "api_key" as "api_key.txt" unless told otherwise: accept both
+  const files = process.env.ELEVENLABS_API_KEY_FILE ? [process.env.ELEVENLABS_API_KEY_FILE] : [path.join(dir, 'api_key'), path.join(dir, 'api_key.txt')];
+  for (const file of files) if (existsSync(file)) { const k = readFileSync(file, 'utf8').replace(/^﻿/, '').trim(); if (k) return k; }
   throw new Error('No ElevenLabs API key: set ELEVENLABS_API_KEY, or save the key as one line in ~/.config/elevenlabs/api_key');
 }
 

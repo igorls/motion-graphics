@@ -46,6 +46,14 @@ const seconds = (file: string) => {
   const p = Bun.spawnSync(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
   return +p.stdout.toString().trim();
 };
+/** Where speech ends: the start of the take's trailing silence (word end times from the alignment run into it). */
+function speechEnd(file: string, dur: number) {
+  const log = ff(['-i', file, '-af', 'silencedetect=n=-45dB:d=0.12', '-f', 'null', '-']);
+  const starts = [...log.matchAll(/silence_start: (-?[\d.]+)/g)].map((m) => +m[1]!);
+  const ends = [...log.matchAll(/silence_end: (-?[\d.]+)/g)].map((m) => +m[1]!);
+  const last = starts.at(-1);
+  return last !== undefined && (ends.length < starts.length || Math.abs(ends.at(-1)! - dur) < 0.05) ? last : dur;
+}
 /** The raw take -> 48 kHz stereo WAV at -16 LUFS integrated, peaks held under -1 dBFS. */
 function master(raw: string, wav: string) {
   const gain = -16 - lufs(raw);
@@ -117,8 +125,10 @@ if (mode === 'voices') {
     const raw = path.join(OUT, 'vo-raw', `${l.id}.mp3`), wav = path.join(voDir, `${l.id}.wav`);
     writeFileSync(raw, r.audio);
     const gain = master(raw, wav);
+    const dur = seconds(wav), end = speechEnd(wav, dur);
+    const words = r.words.map((w) => ({ ...w, e: +Math.min(w.e, Math.max(w.s + 0.05, end)).toFixed(3) }));
     const take: VoTake & Record<string, unknown> = {
-      id: l.id, sent: sentOf(l), file: path.relative(PUB, wav).replace(/\\/g, '/'), duration: +seconds(wav).toFixed(3), words: r.words,
+      id: l.id, sent: sentOf(l), file: path.relative(PUB, wav).replace(/\\/g, '/'), duration: +dur.toFixed(3), words, speechEnd: +end.toFixed(3),
       model: script.model, voice: script.voice, settings: script.settings ?? null, seed: script.seed ?? null,
       requestId: r.requestId, characters: r.chars, context: r.usedContext, gainDb: gain, rendered: new Date().toISOString(),
     };
