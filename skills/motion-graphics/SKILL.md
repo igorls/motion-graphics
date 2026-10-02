@@ -34,7 +34,7 @@ Find or infer what you can; the brief interview covers the rest. Defaults in bra
 | What it's for (product, feature, announcement, campaign) and the one message | infer from the codebase/site/brief; ask if unclear |
 | Brand profile | a file matching the product in `<skill-dir>/profiles/` or `<skill-dir>/profiles/local/`, else build one from the source ([references/brand-profiles.md](references/brand-profiles.md)) |
 | Formats | vertical 9:16 for Reels/Stories/TikTok; add portrait 4:5 for feed; landscape 16:9 for web/YouTube |
-| Duration | 10-20 s for ads (hook in the first 1.5 s), 6-10 s for a feed loop, up to 30 s for a launch piece |
+| Duration | 10-20 s for ads (hook in the first 1.5 s), 6-10 s for a feed loop, up to 30 s for a launch piece; longer when the viewer has to learn several new ideas (about 4-6 s per new idea, plus reading time) |
 | Music | a user-supplied track; or generated with a music model you can reach, composed to the edit ([references/generative-music.md](references/generative-music.md)); or silent |
 | Video clips | optional: generated with a video model you can reach, as plates or keyed inserts ([references/generative-video.md](references/generative-video.md)) |
 | Real media | the product's own UI, outputs, screenshots, copy: find them in the repo/site |
@@ -50,6 +50,8 @@ Answer in a few lines before designing anything: What is it (one sentence)? Who 
 
 Show the thing: the product doing its job beats any description of it. Use real outputs, real UI, real data and real copy; never invent claims, numbers or testimonials.
 
+**Placeholder data:** when the real recording can't be made yet (the hardware isn't available, the release isn't out), a concept may run on clearly estimated numbers, but only with a visible "NOT FOR POSTING" watermark on every frame, and with the exact command that records the real data written into the treatment. The watermark comes off only when the data is replaced.
+
 **Brand:** build or load the brand profile now and confirm it with the user in the brief (palette, type, voice, what the brand never does). A piece that is brilliant but off brand is wrong.
 
 ### 2. Creative brief: interview the user
@@ -57,7 +59,7 @@ Show the thing: the product doing its job beats any description of it. Use real 
 Ask what the material can't tell you. Pick the questions that matter for this piece (usually 6-10 over two or three rounds):
 
 - **Occasion and audience:** what is launching or being said, where it runs (organic post, paid ad, site hero, conference screen), who should stop scrolling.
-- **The one message** (offer 2-3 candidates you drafted from the material) and the feeling it should leave (awe, delight, confidence, curiosity, a laugh).
+- **The one message** (offer 2-3 candidates you drafted from the material) and the feeling it should leave (awe, delight, confidence, curiosity, a laugh). Then: **after one watch, what should a viewer be able to say?** That sentence is what the comprehension review checks.
 - **Brand check:** "Here's the profile I built: palette, type, voice. Anything wrong or missing? Anything this brand never does?" Ask for do's and don'ts, and whether the piece may stretch the brand (a new motion language) or must stay strictly inside it.
 - **References:** pieces, brands, films or motion studios they love (and hate) for this; offer 2-3 reference directions to react to if they have none.
 - **Must include / must avoid:** product shots, UI, people, claims, logos, legal lines.
@@ -105,6 +107,8 @@ Write `TREATMENT.md` ([references/treatment.md](references/treatment.md)): the i
 - At least one shot uses real depth (the 3D stage, parallax layers, or a keyed clip sandwiched between type).
 - At least one shot is a transformation (one thing becomes another) and at least one transition is motivated (match cut, the motif carries across, a whip, a wipe by a real object).
 - The whole frame is designed in every shot: backgrounds, texture, light and secondary motion are part of the image; the safe area constrains text, not imagery. Empty space must be a deliberate choice.
+- When the message is that several things happen together, **introduce each one alone, then combine them** (each part long enough to learn what it looks like; the all-together shot is the payoff). Showing everything at once from the start reads as noise.
+- Events faster than the eye (a 50 ms decision, a token stream) get **labelled slow motion** ("▶ 0.25× SLOW MOTION"), then a visible snap to real speed. Recorded data follows [craft.md](references/craft.md#recorded-data-as-motion): a time map per chapter, the clock stops when the recording does, drawn time kept separate from recorded time.
 
 If the piece uses generated clips, the treatment also holds a **clip shot list** (role, subject, motion, screen colour, length).
 
@@ -140,14 +144,18 @@ bun scripts/render.ts stills --t 2.1,2.6,3.4 --only hook      # frames of one sc
 bun scripts/render.ts sheet --n 24 --cols 8                    # contact sheet of the whole piece
 bun scripts/render.ts sheet --cuts                             # 4 frames around every cut
 bun scripts/render.ts stills --t 3.1 --samples auto            # with motion blur, as exported
+bun scripts/render.ts sheet --from 2 --to 3 --every 0.1 --crop 0,600,1080,700 --samples 4   # a motion strip
+bun scripts/render.ts check --t 2.1,5,9.5 --formats vertical,portrait   # the same moments in every format
 bunx tsc --noEmit -p tsconfig.json                             # typecheck
 ```
 
-For motion you can't judge from stills, render a short draft (`video --from 2 --to 5 --samples 4`), pull frames with ffmpeg, or ask the user to watch the live preview (`bun run dev`, then http://localhost:5173/?t=2).
+Times snap to frame times (the only ones the video contains). For motion you can't judge from stills, render a motion strip of the element that moves (a falling piece, a card that lands), a short draft (`video --from 2 --to 5 --samples 4`), or ask the user to watch the live preview (`bun run dev`, then http://localhost:5173/?t=2). Draft renders are slow mostly because of the scene, not the encoder: see [engine.md](references/engine.md#render-speed) before waiting on full renders.
+
+**Previews for the user:** encode drafts you send for feedback at 720p, CRF 23 or lower, about 10 MB or less (file-send tools cap around 35 MiB): `ffmpeg -i out/<format>.mp4 -vf scale=-2:720 -c:v libx264 -preset slow -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart out/<format>-preview.mp4`. Text looks soft in a preview; judge sharpness on the master, and say so if a note might be about the preview.
 
 ### 10. Art-director review: score it, then raise the weakest thing
 
-Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent or a separate agent process that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning; review.md shows how in Claude Code and Codex) score concept, wow, composition, motion and camera, variety, look and materials, craft, brand fit and sound, and name the single weakest thing. Fix it and re-review. Use the strongest model available for the reviewer (a weaker reviewer is a lenient one). The reviewer scores; the gate decides: a reviewer's "ship: yes" never overrides a dimension below 8. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
+Before the final render, run the review in [references/review.md](references/review.md): render the contact sheet and the money shot, then have a **fresh reviewer** (a subagent or a separate agent process that sees the frames, the brief, the treatment, the rubric and the previous rounds' log, not your reasoning; review.md shows how in Claude Code and Codex) score concept, wow, composition, motion and camera, variety, look and materials, craft, brand fit, sound and first-watch comprehension, and name the single weakest thing. Give the reviewer motion strips of the key motions and a reading-time table too: a contact sheet can't show pacing, or whether something moves the way it should. Fix it and re-review. Use the strongest model available for the reviewer (a weaker reviewer is a lenient one). The reviewer scores; the gate decides: a reviewer's "ship: yes" never overrides a dimension below 8. If no subagent is available, do the review yourself against the rubric, honestly, as if it were someone else's work.
 
 - **Fix the weakest dimension, not the easiest.** If a dimension hasn't moved in two rounds, tweaks aren't working: change approach structurally (Look/Craft stuck: a lookdev pass on materials and light; Composition stuck: re-block the shot; Concept stuck: revisit the core device).
 - **Ship gate:** every score 8+ and "yes", checked on frames from the final render (re-review after the last fix). If after ~5 rounds it's still below, stop and ask the user: show the scores, the remaining weak spots and an estimate for another pass; let them choose to continue, change approach, or ship as is. Never ship below the bar silently.
@@ -167,6 +175,7 @@ Deliver: the MP4s, the poster PNGs (the Reel cover), `BRIEF.md`, `CONCEPTS.md`, 
 ## Laws (every piece, every tone)
 
 - **Ambition first.** One strong idea, a money shot, a wow moment on the peak, depth, transformation and scale contrast. Never slides.
+- **Understood on first watch.** A first-time viewer at 1x gets the message without a replay; the wow serves the message, never replaces it. Pace by ideas, not only by words: introduce, then combine.
 - **No default materials.** Every surface is designed: a material language per piece, at least one custom shader, light chosen with the materials.
 - **The hook is the first 1.5 s.** Motion and the most striking visual from frame 1; no logo intro, no fade from black.
 - **Readable with the sound off.** Any line meant to be read holds settled for ~0.3 s per word (a short label ≥ 0.8 s). Fast in, then hold.
