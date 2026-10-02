@@ -3,6 +3,10 @@
 //
 //   stills  --t 1.5,4,9.2                 PNGs of single frames            (out/stills/<format>/)
 //   sheet   [--from 0 --to 14] [--n 16] [--cols 4] [--cuts]   contact sheet (out/sheet-<format>.png)
+//           [--times a,b,c] [--every 0.1] (a motion strip from --from to --to) [--crop x,y,w,h] (logical px)
+//           [--cell 360] (px per tile) [--samples 1|N|auto]
+//   check   --t a,b,c --formats landscape,square [--samples 1|N] [--cell 360]   the same times in every
+//           format, one labelled row per format                         (out/check.png)
 //   video   [--from 0 --to <dur>] [--samples auto|N] [--shutter 0.5] [--crf 18] [--out out/<format>.mp4]
 //           --samples auto (default): 12 sub-frames on still frames, up to --max-samples (108) on fast
 //           motion, until the frame changes by less than --tol (3) levels; N = fixed (4 = quick draft)
@@ -10,6 +14,8 @@
 //
 // Common: --format vertical|portrait|square|landscape (default: project.format)  --scale 2
 //         --only id1,id2 (load only those timeline entries)  --url http://localhost:5173  --headed
+// Times for stills, sheets and checks snap to frame times (k/fps): the video only contains those, and a
+// time between two frames blends both frames' frame-quantized content into a double exposure.
 //
 // Look at every still and sheet you render (open the PNG): that is how the work gets checked.
 import { chromium, type Page } from 'playwright-core';
@@ -52,7 +58,7 @@ function angleFlag() {
   return [];
 }
 
-async function openPage(url: string) {
+async function openPage(url: string, format = opt('format')) {
   const browser = await chromium.launch({
     channel: 'chrome',
     headless: !flag('headed'),
@@ -64,20 +70,25 @@ async function openPage(url: string) {
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
   const qs = new URLSearchParams({ export: '1' });
-  for (const k of ['format', 'scale', 'only', 'fps']) if (opt(k)) qs.set(k, opt(k)!);
+  for (const k of ['scale', 'only', 'fps']) if (opt(k)) qs.set(k, opt(k)!);
+  if (format) qs.set('format', format);
   await page.goto(`${url}/?${qs}`);
   await page.waitForFunction(() => (window as any).__mg?.ready || (window as any).__mg?.error, null, { timeout: 120000 });
   const err = await page.evaluate(() => (window as any).__mg.error);
   if (err) throw new Error(`app failed to boot:\n${err}\n${logs.join('\n')}`);
   const info = await page.evaluate(() => {
     const m = (window as any).__mg;
-    return { width: m.width, height: m.height, fps: m.fps, duration: m.duration, format: m.format, music: m.music, timeline: m.timeline, errors: m.errors };
+    return { width: m.width, height: m.height, logical: m.logical as [number, number], fps: m.fps, duration: m.duration, format: m.format, music: m.music, timeline: m.timeline, errors: m.errors };
   });
   await page.setViewportSize({ width: info.width, height: info.height });
   return { browser, page, logs, info };
 }
 
 type Info = Awaited<ReturnType<typeof openPage>>['info'];
+type Sampling = ReturnType<typeof sampling>;
+
+/** Times snapped to the frame grid (see the header). */
+const snap = (times: number[], fps: number) => times.map((t) => Math.round(t * fps) / fps);
 
 async function grab(page: Page, file: string) {
   const b64: string = await page.evaluate(() => (window as any).__mg.png());
@@ -87,7 +98,7 @@ async function grab(page: Page, file: string) {
 async function stills(page: Page, info: Info, times: number[], dir: string) {
   mkdirSync(dir, { recursive: true });
   const samples = sampling('1');
-  for (const t of times) {
+  for (const t of snap(times, info.fps)) {
     const k: number = await page.evaluate(({ t, s }) => (window as any).__mg.still(t, s, 0.5), { t, s: samples });
     const f = path.join(dir, `f_${t.toFixed(2).padStart(6, '0')}.png`);
     await grab(page, f);
@@ -95,10 +106,16 @@ async function stills(page: Page, info: Info, times: number[], dir: string) {
   }
 }
 
-async function sheet(page: Page, info: Info, times: number[], cols: number, out: string) {
-  const data: string = await page.evaluate(async ({ times, cols, w, h }) => {
+interface TileOpts { crop?: number[]; samples: Sampling; cell: number; label?: string }
+
+/** Frames at `times` tiled into one PNG (base64), each labelled; crop is in logical px. */
+async function tiles(page: Page, info: Info, times: number[], cols: number, o: TileOpts): Promise<string> {
+  const k = info.width / info.logical[0];
+  const crop = o.crop ? o.crop.map((v) => Math.round(v * k)) : [0, 0, info.width, info.height];
+  return page.evaluate(({ times, cols, crop, samples, cell, label }) => {
     const M = (window as any).__mg;
-    const cw = 360, ch = Math.round((cw * h) / w), pad = 6, lab = 18;
+    const [sx, sy, sw, sh] = crop as [number, number, number, number];
+    const cw = cell, ch = Math.round((cw * sh) / sw), pad = 6, lab = 18;
     const rows = Math.ceil(times.length / cols);
     const cv = document.createElement('canvas');
     cv.width = cols * (cw + pad) + pad; cv.height = rows * (ch + lab + pad) + pad;
@@ -106,17 +123,53 @@ async function sheet(page: Page, info: Info, times: number[], cols: number, out:
     c.fillStyle = '#222'; c.fillRect(0, 0, cv.width, cv.height);
     const src = document.getElementById('c') as HTMLCanvasElement;
     times.forEach((t: number, i: number) => {
-      M.still(t);
+      M.still(t, samples, 0.5);
       const x = pad + (i % cols) * (cw + pad), y = pad + Math.floor(i / cols) * (ch + lab + pad);
-      c.drawImage(src, x, y + lab, cw, ch);
+      c.drawImage(src, sx, sy, sw, sh, x, y + lab, cw, ch);
       const id = M.timeline.filter((e: any) => t >= e.start && t < e.end).map((e: any) => e.id).join('+');
-      c.fillStyle = '#ddd'; c.font = '12px monospace'; c.fillText(`${t.toFixed(2)}s ${id}`, x + 2, y + 13);
+      c.fillStyle = '#ddd'; c.font = '12px monospace'; c.fillText(`${label ? label + ' ' : ''}${t.toFixed(2)}s ${id}`, x + 2, y + 13);
     });
     return cv.toDataURL('image/png').split(',')[1];
-  }, { times, cols, w: info.width, h: info.height });
+  }, { times: snap(times, info.fps), cols, crop, samples: o.samples, cell: o.cell, label: o.label ?? '' });
+}
+
+async function sheet(page: Page, info: Info, times: number[], cols: number, out: string, o: TileOpts) {
+  const data = await tiles(page, info, times, cols, o);
   mkdirSync(path.dirname(out), { recursive: true });
   await Bun.write(out, Buffer.from(data, 'base64'));
   console.log(out);
+}
+
+/** The same times in every format: one labelled row per format, stacked into one PNG. */
+async function check(url: string, formats: string[], times: number[], out: string) {
+  const rows: string[] = [];
+  for (const [i, fmt] of formats.entries()) {
+    const { browser, page, info, logs } = await openPage(url, fmt);
+    try {
+      if (info.errors.length) console.error(`SCENE ERRORS (${fmt}):\n` + info.errors.join('\n'));
+      rows.push(await tiles(page, info, times, times.length, { samples: sampling('1'), cell: +opt('cell', '360')!, label: fmt }));
+      if (i === formats.length - 1) {
+        const data: string = await page.evaluate(async (rows) => {
+          const imgs = await Promise.all(rows.map((b64: string) => new Promise<HTMLImageElement>((res, rej) => {
+            const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = 'data:image/png;base64,' + b64;
+          })));
+          const cv = document.createElement('canvas');
+          cv.width = Math.max(...imgs.map((im) => im.width)); cv.height = imgs.reduce((h, im) => h + im.height, 0);
+          const c = cv.getContext('2d')!;
+          c.fillStyle = '#222'; c.fillRect(0, 0, cv.width, cv.height);
+          let y = 0;
+          for (const im of imgs) { c.drawImage(im, 0, y); y += im.height; }
+          return cv.toDataURL('image/png').split(',')[1];
+        }, rows);
+        mkdirSync(path.dirname(out), { recursive: true });
+        await Bun.write(out, Buffer.from(data, 'base64'));
+        console.log(out);
+      }
+      if (logs.length) console.error(`BROWSER LOG (${fmt}):\n` + logs.slice(0, 20).join('\n'));
+    } finally {
+      await browser.close();
+    }
+  }
 }
 
 const COLOR = ['-vf', 'vflip,scale=out_color_matrix=bt709,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709'];
@@ -187,6 +240,13 @@ async function poster(page: Page, info: Info, t: number, videoPath: string) {
 }
 
 const { url, stop } = await ensureServer();
+if (mode === 'check') {
+  try {
+    const formats = (opt('formats') ?? 'vertical,portrait,square,landscape').split(',');
+    await check(url, formats, (opt('t') ?? '0').split(',').map(Number), path.resolve(opt('out', path.join(OUT, 'check.png'))!));
+  } finally { stop(); }
+  process.exit(0);
+}
 const { browser, page, logs, info } = await openPage(url);
 try {
   if (info.errors.length) console.error('SCENE ERRORS:\n' + info.errors.join('\n'));
@@ -197,9 +257,12 @@ try {
   } else if (mode === 'sheet') {
     const from = +opt('from', '0')!, to = +opt('to', String(info.duration))!, n = +opt('n', '16')!;
     let times = Array.from({ length: n }, (_, i) => from + ((to - from - 0.02) * i) / Math.max(1, n - 1));
+    if (opt('every')) { times = []; for (let t = from; t < to - 1e-9; t += +opt('every')!) times.push(t); }
     if (opt('times')) times = opt('times')!.split(',').map(Number);
     if (flag('cuts')) times = info.timeline.slice(1).flatMap((e: any) => [e.start - 0.1, e.start - 1 / info.fps, e.start, e.start + 0.1]);
-    await sheet(page, info, times, +opt('cols', '4')!, opt('out', path.join(OUT, `sheet-${fmt}.png`))!);
+    const crop = opt('crop')?.split(',').map(Number);
+    await sheet(page, info, times, +opt('cols', '4')!, opt('out', path.join(OUT, `sheet-${fmt}.png`))!,
+      { crop, samples: sampling('1'), cell: +opt('cell', '360')! });
   } else if (mode === 'video') {
     await video(page, info, +opt('from', '0')!, +opt('to', String(info.duration))!, path.resolve(opt('out', path.join(OUT, `${fmt}.mp4`))!));
   } else if (mode === 'poster') {
