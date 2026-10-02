@@ -18,6 +18,7 @@ Prefer the most controllable model available. Whatever the family: **analyse eve
 - **Bar map:** sections in bars, matching the scene windows: e.g. intro 2 → build 2 → drop 4 → outro 1. Put the biggest musical change (the drop) where the biggest visual change lands.
 - **Energy per section:** sparse/building/full/resolving, and where the stops or risers go.
 - **Instrumentation and mood:** genre, instruments, production style, in the brand's voice. Instrumental by default for ads (voice-over and on-screen text need the space).
+- **The arrangement mirrors the reveal.** When the edit introduces parts one at a time and then shows them together, let each part bring in a new instrument on its chapter's downbeat, and save the full band (and the drums, if they're held back) for the all-together moment. The structure becomes audible, and the payoff sounds like one.
 - **Length:** the piece length plus one bar of tail to trim into.
 
 ## Bar maps for common lengths
@@ -57,7 +58,8 @@ Every take gets a music map (`analyze_audio.py ... --map-md MUSIC-MAP-<take>.md 
 2. Analyse each: `uv run --project scripts python scripts/analyze_audio.py take.flac --out take.json` and render a spectrogram (`ffmpeg -i take.flac -lavfi showspectrumpic=s=1500x400:scale=log:fscale=log spec.png`). Check: tempo within ±0.5 BPM of the score, section changes on the written bar lines (energy steps in the spectrogram at bar × 60/BPM × beats-per-bar), no silence or junk before the end of the score.
 3. Send the best 1-2 to the user to listen, and say what you checked and what you couldn't.
 4. Conform: trim to the piece length on a bar line with a short fade, and loudness-normalise (`-af "afade=t=out:st=<len-0.6>:d=0.6,loudnorm=I=-14:TP=-1.5:LRA=11"`). Put it in `public/audio/`, set `project.music`.
-5. Lock the grid: run the analysis on the final file with what the score tells you: `--bpm <score tempo> --downbeat-offset 0 --sections "intro:0,build:4,drop:6,..."`. The tempo is then exact, only the phase is fitted to the audio (`--first-beat S` forces it if you measured a lead-in), and the script prints where each section really starts against the plan. Detection alone can pick the wrong beat of a four-on-the-floor bar or a late first downbeat; don't build on an unchecked grid. If a section lands more than ~80 ms off, move that scene's cut to the measured time (the sections are in `audio.json`) or pick another take.
+5. **Extending a take by N bars** (the edit grew after the music was chosen): splice rather than regenerate. Repeat whole bars of the section that fits, cutting only on downbeats from the locked grid (`audio.json`). Give each join a 5-10 ms fade out/in with no overlap, so the grid stays exact (an overlapping `acrossfade` shortens the track by its duration at every join; re-lock the grid if you use one). Re-map the result and listen to the joins.
+6. Lock the grid: run the analysis on the final file with what the score tells you: `--bpm <score tempo> --downbeat-offset 0 --sections "intro:0,build:4,drop:6,..."`. The tempo is then exact, only the phase is fitted to the audio (`--first-beat S` forces it if you measured a lead-in), and the script prints where each section really starts against the plan. Detection alone can pick the wrong beat of a four-on-the-floor bar or a late first downbeat; don't build on an unchecked grid. If a section lands more than ~80 ms off, move that scene's cut to the measured time (the sections are in `audio.json`) or pick another take.
 
 ## Common failure modes
 
