@@ -81,6 +81,10 @@ export function clearRT(r: THREE.WebGLRenderer, rt: THREE.WebGLRenderTarget | nu
  * A Canvas2D layer the size of the frame. Draw in logical px (the context is pre-scaled for
  * SCALE), then comp.draw(r, layer.upload(), out). Uploads cost a few ms each at 1080p: keep
  * to 2-3 layers per scene. Canvas colours are sRGB; the compositor converts them.
+ *
+ * Content that changes once per output frame (counters, readouts, text driven by frameIdx or by
+ * recorded data quantized to the frame) should use clearFor(frameIdx(t)): the motion-blur
+ * sub-frames of one frame then reuse one drawing and one upload instead of redrawing it N times.
  */
 export class Layer2D {
   canvas: HTMLCanvasElement;
@@ -97,7 +101,22 @@ export class Layer2D {
     this.tex.minFilter = THREE.LinearFilter;
     this.tex.generateMipmaps = false;
   }
+  private key = NaN;
+  private reused = false;
+  /**
+   * Like clear(), but returns null when the layer is already drawn for this key (pass
+   * frameIdx(t)): skip drawing, and upload() reuses the texture already on the GPU. Keep clear()
+   * for content animated in continuous t, so the sub-frames blur it.
+   */
+  clearFor(key: number): CanvasRenderingContext2D | null {
+    if (key === this.key) { this.reused = true; return null; }
+    const c = this.clear();
+    this.key = key;
+    return c;
+  }
   clear() {
+    this.reused = false;
+    this.key = NaN;
     const c = this.ctx;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -108,7 +127,12 @@ export class Layer2D {
     c.fontKerning = 'normal';
     return c;
   }
-  upload() { this.tex.needsUpdate = true; return this.tex; }
+  /** The layer as a texture; re-sent to the GPU unless clearFor() just reused this frame's drawing. */
+  upload() {
+    if (!this.reused) this.tex.needsUpdate = true;
+    this.reused = false;
+    return this.tex;
+  }
   dispose() { this.tex.dispose(); }
 }
 
