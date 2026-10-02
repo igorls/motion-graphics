@@ -12,6 +12,12 @@ export const project = {
   duration: 14,
   /** Music under public/ (null = silent). Run scripts/analyze_audio.py on it to get public/audio.json. */
   music: null as string | null,
+  /** Voice-over script under public/ (e.g. 'vo/vo.json', rendered with scripts/voice.ts), or null. */
+  voice: null as string | null,
+  /** Burned-in captions from the voice-over's word timings (needs voice). */
+  captions: true,
+  /** The mix when there is a voice: music bed level and how far it ducks under speech (dB). */
+  mix: { musicDb: -4, duckDb: -9 },
   /** Beat grid used when there is no public/audio.json (silent pieces still cut on a grid). */
   bpm: 120,
   beatsPerBar: 4,

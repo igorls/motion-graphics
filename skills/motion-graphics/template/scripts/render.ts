@@ -78,7 +78,8 @@ async function openPage(url: string, format = opt('format')) {
   if (err) throw new Error(`app failed to boot:\n${err}\n${logs.join('\n')}`);
   const info = await page.evaluate(() => {
     const m = (window as any).__mg;
-    return { width: m.width, height: m.height, logical: m.logical as [number, number], fps: m.fps, duration: m.duration, format: m.format, music: m.music, timeline: m.timeline, errors: m.errors };
+    return { width: m.width, height: m.height, logical: m.logical as [number, number], fps: m.fps, duration: m.duration, format: m.format, music: m.music, timeline: m.timeline, errors: m.errors,
+      voice: (m.voice ?? []) as { id: string; file: string; t: number; gain: number; duration: number }[], mix: m.mix as { musicDb: number; duckDb: number } | undefined };
   });
   await page.setViewportSize({ width: info.width, height: info.height });
   return { browser, page, logs, info };
@@ -178,15 +179,37 @@ async function video(page: Page, info: Info, from: number, to: number, out: stri
   mkdirSync(path.dirname(out), { recursive: true });
   const { width, height, fps } = info;
   const music = info.music ? path.join(APP, 'public', info.music) : null;
-  const withAudio = music && existsSync(music) && !flag('noaudio');
+  const hasMusic = !!music && existsSync(music);
+  // the voice-over lines that sound inside [from, to), at their cue times on the grid
+  const vo = (info.voice ?? []).filter((c) => c.t < to && c.t + c.duration > from && existsSync(path.join(APP, 'public', c.file)));
+  const withAudio = (hasMusic || vo.length > 0) && !flag('noaudio');
   const args = ['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${width}x${height}`, '-r', String(fps), '-i', 'pipe:0'];
-  if (withAudio) args.push('-ss', String(from), '-t', String(to - from), '-i', music!);
+  if (withAudio && hasMusic) args.push('-ss', String(from), '-t', String(to - from), '-i', music!);
+  if (withAudio) for (const c of vo) args.push('-i', path.join(APP, 'public', c.file));
   // Frames are sRGB: convert with the BT.709 matrix and tag it, or players guess BT.601 and shift the colours.
   args.push(...COLOR, '-c:v', 'libx264', '-preset', opt('preset', 'slow')!, '-crf', opt('crf', '18')!, '-pix_fmt', 'yuv420p',
     '-profile:v', 'high', '-x264-params', opt('x264', 'aq-mode=3')!);
   if (withAudio) {
-    const fadeOut = Math.max(0, to - from - 0.6);
-    args.push('-af', `afade=t=out:st=${fadeOut}:d=0.6`, '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-shortest');
+    const len = to - from, fadeOut = Math.max(0, len - 0.6), f: string[] = [];
+    let k = 1;
+    const mIn = hasMusic ? k++ : -1;
+    vo.forEach((c, i) => {
+      const off = c.t - from, delay = Math.max(0, Math.round(off * 1000));
+      const trim = off < 0 ? `atrim=start=${(-off).toFixed(3)},asetpts=PTS-STARTPTS,` : '';
+      f.push(`[${k++}:a]aresample=48000,aformat=channel_layouts=stereo,${trim}adelay=${delay}|${delay},volume=${c.gain}dB[v${i}]`);
+    });
+    if (vo.length) f.push(`${vo.map((_, i) => `[v${i}]`).join('')}amix=inputs=${vo.length}:normalize=0:dropout_transition=0,apad[vo]`);
+    if (hasMusic && vo.length) {
+      // the music bed sits lower under a voice and ducks further while someone speaks (sidechained from the voice bus);
+      // takes are mastered to -16 LUFS, so speech runs ~17 dB over the threshold: ratio sets the duck depth
+      const mix = info.mix ?? { musicDb: -4, duckDb: -9 };
+      const ratio = Math.min(20, Math.max(1, 1 / (1 - Math.min(16, Math.abs(mix.duckDb)) / 17))).toFixed(2);
+      f.push(`[${mIn}:a]aresample=48000,aformat=channel_layouts=stereo,volume=${mix.musicDb}dB[mus0]`, '[vo]asplit=2[vo1][vosc]',
+        `[mus0][vosc]sidechaincompress=threshold=0.015:ratio=${ratio}:attack=40:release=450:knee=3[mus]`,
+        '[mus][vo1]amix=inputs=2:normalize=0:duration=first[mix]');
+    } else f.push(hasMusic ? `[${mIn}:a]anull[mix]` : '[vo]anull[mix]');
+    f.push(`[mix]atrim=0:${len.toFixed(3)},afade=t=out:st=${fadeOut}:d=0.6,alimiter=limit=0.891:level=false[aout]`);
+    args.push('-filter_complex', f.join(';'), '-map', '0:v', '-map', '[aout]', '-c:a', 'aac', '-b:a', '256k', '-ar', '48000');
   }
   args.push('-movflags', '+faststart', out);
   const ff = Bun.spawn(args, { stdin: 'pipe', stdout: 'inherit', stderr: 'inherit' });
@@ -218,6 +241,24 @@ async function video(page: Page, info: Info, from: number, to: number, out: stri
   await ff.exited;
   server.stop();
   console.log(`\nwrote ${out} (${frames} frames, ${((performance.now() - t0) / 1000).toFixed(1)} s)${withAudio ? '' : ' [no audio]'}`);
+  if (withAudio) {
+    // the mix as delivered: platforms normalise to about -14 LUFS; a voice should read clearly over the bed
+    const measure = (f: string) => {
+      const e = Bun.spawnSync(['ffmpeg', '-hide_banner', '-nostats', '-i', f, '-map', '0:a', '-af', 'ebur128=peak=true:framelog=quiet', '-f', 'null', '-'], { stderr: 'pipe' }).stderr.toString();
+      return { I: +(/I:\s+(-?[\d.]+) LUFS/.exec(e)?.[1] ?? NaN), tp: +(/Peak:\s+(-?[\d.]+) dBFS/.exec(e)?.[1] ?? NaN) };
+    };
+    let m = measure(out);
+    const target = +opt('lufs', '-14')!;
+    if (Number.isFinite(m.I) && Math.abs(m.I - target) > 0.5 && !flag('no-normalize')) {
+      // deliver at the platforms' loudness: one gain on the finished mix (video copied, not re-encoded), peaks held at -1 dBFS
+      const tmp = out.replace(/\.mp4$/, '.loud.mp4');
+      const p = Bun.spawnSync(['ffmpeg', '-y', '-loglevel', 'error', '-i', out, '-map', '0', '-c:v', 'copy', '-af', `volume=${(target - m.I).toFixed(2)}dB,alimiter=limit=0.85:level=false`,
+        '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-movflags', '+faststart', tmp], { stderr: 'inherit' });
+      if (p.exitCode === 0) { await Bun.write(out, Bun.file(tmp)); (await import('node:fs')).rmSync(tmp); }
+      const before = m.I; m = measure(out);
+      console.log(`audio: ${before.toFixed(1)} -> ${m.I.toFixed(1)} LUFS integrated (target ${target}), true peak ${m.tp.toFixed(1)} dBFS${vo.length ? `, ${vo.length} voice lines` : ''}`);
+    } else console.log(`audio: ${m.I.toFixed(1)} LUFS integrated, true peak ${m.tp.toFixed(1)} dBFS${vo.length ? `, ${vo.length} voice lines` : ''}`);
+  }
   console.log(`sub-frames per frame (count:frames): ${hist(used)}`);
 }
 

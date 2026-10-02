@@ -8,6 +8,8 @@ import { FORMAT_NAME, FPS, PW, PH, W, H, SAFE, SCALE } from './engine/format';
 import { brand } from './brand';
 import { project } from './project';
 import { makeTimeline } from './timeline';
+import { loadVoice, type VoCue } from './engine/voice';
+import { Captions } from './engine/captions';
 
 const q = new URLSearchParams(location.search);
 const exportMode = q.has('export');
@@ -27,6 +29,13 @@ async function boot() {
   ]);
   const timeline = makeTimeline(audio);
   await engine.init(audio, timeline, only);
+  // the voice-over, placed on the grid; captions are an overlay over the finished frame
+  let cues: VoCue[] = [];
+  try {
+    const vo = await loadVoice(project.voice, audio);
+    cues = vo?.cues ?? [];
+    if (cues.length && project.captions) { const cap = new Captions(cues); engine.overlay = (t) => cap.draw(t); }
+  } catch (e) { engine.errors.push(`[voice] ${(e as Error)?.message ?? e}`); }
   const duration = Math.min(project.duration, engine.duration || project.duration);
 
   if (exportMode) {
@@ -37,6 +46,7 @@ async function boot() {
   Object.assign(api, {
     engine, width: PW, height: PH, logical: [W, H], scale: SCALE, format: FORMAT_NAME, fps: FPS, duration,
     safe: SAFE, music: project.music, title: project.title, errors: engine.errors,
+    voice: cues.map((c) => ({ id: c.id, file: c.file, t: c.t, gain: c.gain, duration: c.duration })), mix: project.mix,
     timeline: timeline.map((e) => ({ id: e.id, start: e.start, end: e.end })),
     /** Render one frame at t to the canvas. */
     still(t: number, samples: Sampling = 1, shutter = 0.5) { return engine.render(t, 1 / FPS, true, samples, shutter); },
@@ -65,10 +75,10 @@ async function boot() {
     },
   });
   api.ready = true;
-  if (!exportMode) preview(engine, canvas, duration);
+  if (!exportMode) preview(engine, canvas, duration, cues);
 }
 
-function preview(engine: Engine, canvas: HTMLCanvasElement, duration: number) {
+function preview(engine: Engine, canvas: HTMLCanvasElement, duration: number, cues: VoCue[]) {
   const timeEl = document.getElementById('time')!, sceneEl = document.getElementById('scene')!;
   const scrub = document.getElementById('scrub') as HTMLInputElement;
   const safeEl = document.getElementById('safe')!;
@@ -100,11 +110,21 @@ function preview(engine: Engine, canvas: HTMLCanvasElement, duration: number) {
   });
   scrub.oninput = () => seek(+scrub.value * duration);
 
+  // the voice-over in the preview: each line plays from its cue, in step with the music clock
+  const lines = cues.map((c) => ({ c, el: new window.Audio(c.file) }));
+  const syncVoice = () => {
+    for (const { c, el } of lines) {
+      const inside = playing && t >= c.t && t < c.t + c.duration;
+      if (inside && el.paused) { el.currentTime = t - c.t; void el.play(); }
+      else if (!inside && !el.paused) el.pause();
+    }
+  };
   const frame = () => {
     if (playing) {
       t = music && !music.paused ? music.currentTime : t0 + (performance.now() - clock0) / 1000;
       if (t >= duration) { seek(0); }
     }
+    syncVoice();
     engine.render(t, 1 / FPS);
     timeEl.textContent = `${t.toFixed(2)}s  f${Math.round(t * FPS)}  ${FORMAT_NAME}`;
     sceneEl.textContent = engine.entryAt(t)?.id ?? '';

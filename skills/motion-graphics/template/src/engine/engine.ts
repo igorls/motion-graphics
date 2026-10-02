@@ -60,6 +60,8 @@ export class Engine {
   lastPost: PostParams = { ...DEFAULT_POST };
   /** Sub-frames used for the last rendered frame. */
   lastSamples = 1;
+  /** Drawn over the finished frame after post (burned-in captions); returns an sRGB layer or null. */
+  overlay: ((t: number) => THREE.Texture | null) | null = null;
 
   private rts = [makeRT(), makeRT(), makeRT()];
   private mixRT = makeRT();
@@ -193,6 +195,9 @@ export class Engine {
     }
     this.lastSamples = n;
     this.post.render(r, tex, this.finalRT, post, t);
+    // overlays drawn after the look (captions): crisp, once per output frame, in display space
+    const ov = this.overlay?.(t);
+    if (ov) this.comp.draw(r, ov, this.finalRT, { srgb: false });
     this.lastPost = post;
     if (toScreen) {
       this.blit.u.src!.value = this.finalRT.texture;
