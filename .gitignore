@@ -13,3 +13,9 @@ dogfood/
 
 # machine-specific agent notes
 CLAUDE.local.md
+
+# credentials never belong in the repo (provider keys live in the environment or ~/.config)
+.env
+.env.*
+api_key
+api_key.txt
