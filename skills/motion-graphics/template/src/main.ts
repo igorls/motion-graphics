@@ -34,7 +34,7 @@ async function boot() {
   try {
     const vo = await loadVoice(project.voice, audio);
     cues = vo?.cues ?? [];
-    if (cues.length && project.captions) { const cap = new Captions(cues); engine.overlay = (t) => cap.draw(t); }
+    if (cues.length && project.captions) { const cap = new Captions(cues, typeof project.captions === 'object' ? project.captions : {}); engine.overlay = (t) => cap.draw(t); }
   } catch (e) { engine.errors.push(`[voice] ${(e as Error)?.message ?? e}`); }
   const duration = Math.min(project.duration, engine.duration || project.duration);
 

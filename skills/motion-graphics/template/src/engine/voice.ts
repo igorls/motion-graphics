@@ -109,12 +109,15 @@ export function phrases(cues: VoCue[], maxChars = 32): Phrase[] {
       ? [{ w: cue.caption, s: cue.words[0]?.s ?? 0, e: cue.words.at(-1)?.e ?? cue.duration }]
       : cue.words.filter((w) => key(w.w));
     let cur: VoWord[] = [];
+    const len = (ws: VoWord[]) => ws.reduce((n, x) => n + x.w.length, 0) + Math.max(0, ws.length - 1);
     const flush = () => {
       if (!cur.length) return;
-      const lines: VoWord[][] = [[]];
-      for (const w of cur) {
-        const ln = lines.at(-1)!, len = ln.reduce((n, x) => n + x.w.length + 1, 0) + w.w.length;
-        if (ln.length && len > maxChars) lines.push([w]); else ln.push(w);
+      // one line if it fits; otherwise the balanced break (the shorter longest line), never a lone word below
+      let lines: VoWord[][] = [cur];
+      if (len(cur) > maxChars && cur.length > 1) {
+        let best = 1;
+        for (let k = 1; k < cur.length; k++) if (Math.max(len(cur.slice(0, k)), len(cur.slice(k))) < Math.max(len(cur.slice(0, best)), len(cur.slice(best)))) best = k;
+        lines = [cur.slice(0, best), cur.slice(best)];
       }
       out.push({ cue, lines, s: cue.t + cur[0]!.s, e: cue.t + cur.at(-1)!.e });
       cur = [];

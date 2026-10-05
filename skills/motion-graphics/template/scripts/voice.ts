@@ -150,9 +150,11 @@ if (mode === 'voices') {
     if (e > project.duration) console.log(`  ! ends after the piece (${project.duration} s)`);
   }
   for (const [a, b] of overlaps(cues)) console.log(`! ${a} and ${b} overlap`);
-  const srt = phrases(cues, 42).map((p, i) => {
+  const list = phrases(cues, 42);
+  const srt = list.map((p, i) => {
     const ts = (x: number) => new Date(Math.max(0, x) * 1000).toISOString().slice(11, 23).replace('.', ',');
-    return `${i + 1}\n${ts(p.s)} --> ${ts(p.e + 0.3)}\n${p.lines.map((ln) => ln.map((w) => w.w).join(' ')).join('\n')}\n`;
+    const end = Math.min(p.e + 0.3, (list[i + 1]?.s ?? Infinity) - 0.02); // a caption leaves before the next arrives
+    return `${i + 1}\n${ts(p.s)} --> ${ts(end)}\n${p.lines.map((ln) => ln.map((w) => w.w).join(' ')).join('\n')}\n`;
   }).join('\n');
   mkdirSync(OUT, { recursive: true }); writeFileSync(path.join(OUT, 'voice.srt'), srt);
   console.log(`out/voice.srt (${srt ? srt.split('\n\n').length : 0} captions)`);

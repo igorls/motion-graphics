@@ -19,6 +19,8 @@ export interface CaptionOpts {
   plate?: boolean;
   /** Baseline of the last line, in logical px (default: the bottom of SAFE). */
   y?: number;
+  /** Raise the captions this many logical px above the bottom of SAFE (to clear a readout or a lower third). */
+  lift?: number;
 }
 
 export class Captions {
@@ -38,12 +40,12 @@ export class Captions {
     const k = Math.min(1, (t - (p.s - 0.08)) / 0.1) * Math.min(1, (Math.min(p.e + 0.4, this.list[i + 1]?.s ?? Infinity) - t) / 0.12);
     c.font = font(brand.fonts.body, sz, 600);
     c.textBaseline = 'alphabetic';
-    const yLast = this.o.y ?? SAFE.y + SAFE.h - sz * 0.35;
+    const yLast = this.o.y ?? SAFE.y + SAFE.h - sz * 0.35 - (this.o.lift ?? 0);
     const widths = p.lines.map((ln) => c.measureText(ln.map((w) => w.w).join(' ')).width);
     const top = yLast - (p.lines.length - 1) * lh - sz;
     if (this.o.plate ?? true) {
       const pw = Math.max(...widths) + sz * 1.1, ph = p.lines.length * lh + sz * 0.45;
-      c.globalAlpha = 0.62 * k; c.fillStyle = '#000';
+      c.globalAlpha = 0.78 * k; c.fillStyle = '#000'; // dense enough to read over the brightest frame, accent word included
       c.beginPath(); c.roundRect(W / 2 - pw / 2, top - sz * 0.2, pw, ph, sz * 0.3); c.fill();
     }
     const now = t - p.cue.t; // seconds into the take

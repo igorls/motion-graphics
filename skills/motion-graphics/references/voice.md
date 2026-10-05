@@ -52,7 +52,9 @@ Every line is placed on the grid (`public/vo/vo.json`):
 
 ## Captions
 
-Burned-in captions come from the takes' word timings (`project.captions`, on by default with a voice): one phrase at a time, at most two lines, the word being said in the accent, drawn after the post chain so they stay crisp. They sit at the bottom of `SAFE` (above the platform UI in 9:16). Restyle `src/engine/captions.ts` to the piece if the default plate doesn't fit the look, but keep them readable at phone size and in contrast with every frame behind them. Deliver `out/voice.srt` too, for platforms that take a caption file.
+Burned-in captions come from the takes' word timings (`project.captions`, on by default with a voice): one phrase at a time, at most two lines, the word being said in the accent, drawn after the post chain so they stay crisp. They sit at the bottom of `SAFE` (above the platform UI in 9:16). Restyle `src/engine/captions.ts` to the piece if the default plate doesn't fit the look, but keep them readable at phone size and in contrast with every frame behind them; `project.captions: { lift: 80 }` raises them above a readout or lower third. Phrases break into balanced lines (never a lone word below) and the SRT never shows two captions at once. Deliver `out/voice.srt` too, for platforms that take a caption file.
+
+**Skip burned-in captions when the on-screen type already tells the story** and the voice repeats or deepens it: a caption under a headline that says the same words, or a second message competing with the headline, is clutter. Deliver the SRT for the platform's caption track instead. Burn them in when the voice carries information the picture doesn't (explainers, stories, interviews).
 
 ## Languages
 

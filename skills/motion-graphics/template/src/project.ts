@@ -14,8 +14,9 @@ export const project = {
   music: null as string | null,
   /** Voice-over script under public/ (e.g. 'vo/vo.json', rendered with scripts/voice.ts), or null. */
   voice: null as string | null,
-  /** Burned-in captions from the voice-over's word timings (needs voice). */
-  captions: true,
+  /** Burned-in captions from the voice-over's word timings (needs voice): true, false, or options
+   *  ({ lift, size, plate, maxChars } from src/engine/captions.ts), e.g. { lift: 80 } to clear a bottom readout. */
+  captions: true as boolean | { lift?: number; size?: number; plate?: boolean; maxChars?: number },
   /** The mix when there is a voice: music bed level and how far it ducks under speech (dB). */
   mix: { musicDb: -4, duckDb: -9 },
   /** Beat grid used when there is no public/audio.json (silent pieces still cut on a grid). */
