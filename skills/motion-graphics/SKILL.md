@@ -155,7 +155,7 @@ bunx tsc --noEmit -p tsconfig.json                             # typecheck
 
 Times snap to frame times (the only ones the video contains). For motion you can't judge from stills, render a motion strip of the element that moves (a falling piece, a card that lands), a short draft (`video --from 2 --to 5 --samples 4`), or ask the user to watch the live preview (`bun run dev`, then http://localhost:5173/?t=2). Draft renders are slow mostly because of the scene, not the encoder: see [engine.md](references/engine.md#render-speed) before waiting on full renders.
 
-**Previews for the user:** encode drafts you send for feedback at 720p, CRF 23 or lower, about 10 MB or less (file-send tools cap around 35 MiB): `ffmpeg -i out/<format>.mp4 -vf scale=-2:720 -c:v libx264 -preset slow -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart out/<format>-preview.mp4`. Text looks soft in a preview; judge sharpness on the master, and say so if a note might be about the preview.
+**Previews for the user:** encode drafts you send for feedback at 720p, CRF 23 or lower, about 10 MB or less (file-send tools cap around 30 MiB): `ffmpeg -i out/<format>.mp4 -vf scale=-2:720 -c:v libx264 -preset slow -crf 23 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart out/<format>-preview.mp4`. Text looks soft in a preview; judge sharpness on the master, and say so if a note might be about the preview.
 
 ### 10. Art-director review: score it, then raise the weakest thing
 
