@@ -124,7 +124,7 @@ The craft is in [voice.md](voice.md). The mechanics:
 - **Captions** (`project.captions`: true, false, or options such as `{ lift: 80 }`; default on with a voice): `src/engine/captions.ts` draws one phrase at a time from the word timings (two lines at most, the current word in the accent, a soft plate), through `engine.overlay`, which composites over the finished frame after post, once per output frame: no bloom, grain or blur on them. Restyle that file per piece; keep it readable at phone size.
 - **Preview:** `bun run dev` plays the lines with the music, each from its cue.
 - **The mix** (`render.ts video`): every line inside the render window at its cue, summed into a voice bus; the music lowered by `project.mix.musicDb` and sidechain-ducked from the voice bus by about `duckDb` while someone speaks (attack 40 ms, release 450 ms); a 0.6 s fade at the end and a limiter at -1 dBFS. The finished mix is then brought to -14 LUFS integrated (`--lufs`, or `--no-normalize` to keep it as mixed; video is copied, not re-encoded) and the render prints the loudness and true peak.
-- **Scenes can read the voice too:** time a reveal to a word with the cues (the engine exposes them as `window.__mg.voice`; for a scene, load them with `loadVoice(project.voice, audio)` in `init()`).
+- **Scenes read the voice too:** load the cues in `init()` with `loadVoice(project.voice, audio)` and reveal on-screen words on `spokenAt(cue, i)` (the time word i is spoken), holding them until `spokenEnd(cue)`; the engine also exposes the cues as `window.__mg.voice`. Per line, `seed` and `settings` override the script's, and `after` chains from the previous line's last word.
 
 ## Motion blur
 

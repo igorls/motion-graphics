@@ -22,7 +22,7 @@ export interface VoTake {
  * One line of the script. Place it with exactly one of:
  *  - `at`: its start, in seconds or on the grid ("bar:4", "bar:4.5", "beat:17");
  *  - `land`: a word of it on a time (the line starts so that `word` begins at `at`), to put the key word on a beat;
- *  - `after`: the id of the line before it, plus `gap` seconds (default 0.25), for natural back-to-back reading.
+ *  - `after`: the id of the line before it, plus `gap` seconds (default 0.25) from its last word to this line's first, for back-to-back reading.
  */
 export interface VoLine {
   id: string;
@@ -37,6 +37,10 @@ export interface VoLine {
   gain?: number;
   /** Caption override: a string to show instead of the spoken words, or false for no caption. */
   caption?: string | false;
+  /** Provider settings for this line only, over the script's (e.g. { speed: 1.15 } to fit a window). */
+  settings?: Record<string, number | boolean>;
+  /** Seed for this line only (takes vary by seed: keep the one whose read fits, fixed for re-renders). */
+  seed?: number;
 }
 
 export interface VoScript {
@@ -80,12 +84,17 @@ export function resolveCues(script: VoScript, takes: Record<string, VoTake>, aud
     } else if (line.after) {
       const prev = out.find((c) => c.id === line.after);
       if (!prev) throw new Error(`voice: line "${line.id}" follows "${line.after}", which is not before it in the script`);
-      t = prev.t + prev.duration + (line.gap ?? 0.25);
+      t = prev.t + (prev.words.at(-1)?.e ?? prev.duration) + (line.gap ?? 0.25) - (take.words[0]?.s ?? 0); // speech to speech, not file to file
     } else t = timeOf(audio, line.at ?? 0);
     out.push({ ...take, t, gain: line.gain ?? 0, caption: line.caption === false ? false : (line.caption ?? stripTags(line.text)) });
   }
   return out;
 }
+
+/** When word i of a placed line is spoken (piece seconds): reveal on-screen words on these, so type and voice stay in sync. */
+export const spokenAt = (cue: VoCue, i: number) => cue.t + (cue.words[Math.min(i, cue.words.length - 1)]?.s ?? 0);
+/** When a placed line stops speaking (piece seconds). */
+export const spokenEnd = (cue: VoCue) => cue.t + (cue.words.at(-1)?.e ?? cue.duration);
 
 /** Pairs of lines that would talk over each other (speech intervals, ignoring the takes' silent edges). */
 export function overlaps(cues: VoCue[]) {

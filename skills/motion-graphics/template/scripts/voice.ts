@@ -118,7 +118,7 @@ if (mode === 'voices') {
   for (const l of todo) {
     const i = script.lines.indexOf(l);
     const r = await eleven.synthesize({
-      text: sentOf(l), voiceId: script.voice.id, model: script.model, settings: script.settings, language: script.language, seed: script.seed,
+      text: sentOf(l), voiceId: script.voice.id, model: script.model, settings: { ...(script.settings ?? {}), ...(l.settings ?? {}) }, language: script.language, seed: l.seed ?? script.seed,
       previous: script.lines.slice(0, i).map((x) => stripTags(x.text)).join(' ') || undefined,
       next: script.lines[i + 1] ? stripTags(script.lines[i + 1]!.text) : undefined,
     });
@@ -129,7 +129,7 @@ if (mode === 'voices') {
     const words = r.words.map((w) => ({ ...w, e: +Math.min(w.e, Math.max(w.s + 0.05, end)).toFixed(3) }));
     const take: VoTake & Record<string, unknown> = {
       id: l.id, sent: sentOf(l), file: path.relative(PUB, wav).replace(/\\/g, '/'), duration: +dur.toFixed(3), words, speechEnd: +end.toFixed(3),
-      model: script.model, voice: script.voice, settings: script.settings ?? null, seed: script.seed ?? null,
+      model: script.model, voice: script.voice, settings: { ...(script.settings ?? {}), ...(l.settings ?? {}) }, seed: l.seed ?? script.seed ?? null,
       requestId: r.requestId, characters: r.chars, context: r.usedContext, gainDb: gain, rendered: new Date().toISOString(),
     };
     writeFileSync(path.join(voDir, `${l.id}.json`), JSON.stringify(take, null, 1) + '\n');
