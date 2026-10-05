@@ -28,7 +28,8 @@ Ask in the brief: voice or not, which language(s), the voice's character in thre
 
 ## Direct the performance
 
-- **Direction is a performance note, not a mood board:** "[warm, unhurried, a smile in the voice]", "[dry, understated, close to the mic]". One note per line at most; the same note across lines keeps the read consistent. Overacting (big laughs, gasps, whispers for drama) reads as synthetic faster than a flat read.
+- **Direction is a performance note, not a mood board:** "[clear, confident, conversational]", "[warm, assured, full voice]". One note per line at most; the same note across lines keeps the read consistent. Overacting (big laughs, gasps, whispers for drama) reads as synthetic faster than a flat read.
+- **Intimacy words make a whisper.** "Close to the mic", "soft", "understated", "intimate" turn a narrator breathy and ASMR-like, which a launch or explainer viewer hears as too quiet even at full level (a user rejected exactly that read). Use them only when the piece wants intimacy; for presenting, ask for clarity and projection ("clear", "confident", "full voice", "presenting to a room").
 - **Pauses with text structure:** ellipses and full stops make breaths; commas make short holds; a new line in the script is a new breath. Models without break tags still follow punctuation.
 - **Render line by line with context** (`render` passes the neighbouring lines), so each line keeps the read of the whole script while you can re-take one line alone. Fix a line by rewriting it, not by re-rolling seeds until it sounds right; keep the seed fixed for reproducible takes.
 - **Listen, or have it listened to.** An agent can't hear prosody. Check what can be measured (duration, words per second, the word timings, loudness) and send every new take to the user before building on it.
