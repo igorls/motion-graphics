@@ -97,6 +97,19 @@ When the motion shows real recorded events (requests, tokens, moves, scores), th
 - **No outlines, no visible drop shadows.** One exception: overlay text that has to read over a live 3D or data world (a caption over a moving camera, numbers over flashing cells) may carry a soft dark halo: a blur-only shadow in the background colour, invisible as a shape, there to keep edges legible when something bright passes behind. Readouts and labels in a HUD sit on **plates** (dark glass with the piece's edge colour): a plate is part of the design language, not a patch.
 - **Words are part of the image**, not subtitles pasted on top: text rides a curve, is stamped on a card, typed into the product's input field, revealed by the divider.
 
+## Lyric typography
+
+When the words of a song are on screen for the whole piece (a lyric or music video), the type is the main event, not a caption track. What worked over a full song ([music-video.md](music-video.md) for the build):
+
+- **Screen space, designed.** Keep lyric type in screen space and compose it like a poster, frame by frame. Lyrics set *into* the scene (on a wall, on a moving plate, tracked onto an object) read as weak in review, and so do effects that sit on top of the picture without belonging to it: viewers called them "stuck on". The picture's effects belong to its own light and surfaces; the type belongs to the frame.
+- **Two typographic voices** when the song has two (a person and a machine, a singer and a reply, the present and a memory). For example, a warm human serif, composited alpha-over with a soft dark shadow so it sits on the picture; and a mono for the other voice, added as *light* (emissive, with the picture's scanlines, bright enough to bloom), so it glows on the picture instead of covering it. Draw each voice into its own `Layer2D` and composite both in the scene's final shader, after the picture: the over/add difference is what makes them read as two kinds of thing ([engine.md](engine.md#techniques)).
+- **Words enter on their sung onsets**, from word timing ([music-video.md](music-video.md#lyric-timing-from-the-singer-not-the-grid)), never from a stagger or the beat grid. Glyph by glyph for the human voice (each letter rises in over ~0.3 s, 20-30 ms apart, starting ~30 ms before the onset so it settles on the sound); typed across the sung duration for the machine voice (with a cursor that waits). The engine has the helpers: `glyphIn`, `typedChars` in `src/engine/lyrics.ts`.
+- **Exit with an afterglow:** after the line's last word, tint the ink to the accent over 0.2 s, then decay the alpha exponentially, with a hard cut to zero (e.g. 0.85 s after the exit starts) so no ghost lingers into the next line (`afterglow()`). A soft exponential alone never reaches zero, and three lines of faint ghosts muddy every frame.
+- **One device per line, from its meaning.** A full song can't run on one entrance. Give each line its own device, taken from what it says, inside the one type system: a word mirrored across an axis (a double, a reflection); a box drawn around a word that nests outward on the beats (something inside something); walls closing in on the beats until they snap tight around the line (being trapped); glyphs that pour down and bounce into place (overflowing); outline-only "hollow" type (absence, emptiness); two misregistered copies that never quite line up (an imitation, almost); words receding to a vanishing point (distance, leaving); glyph boxes that "build" the letters (making something); a word riding a live wire path across the frame (a signal, a connection); an oscilloscope of the song's own envelope under a word (a pulse, a voice: `envAt`); words landing in hard steps (machines: `glyphIn` with `steps`); a word that tries to curve and snaps straight (resistance); a word drawn in displaced strips (interference), one that splits in two (a break), one that breathes (alive). One idea per line; most words stay plain so the devices land.
+- **Lay out by re-centring as words arrive.** A line that grows from the left edge leaves its first word stranded and the frame lopsided until the line is complete. Keep the row centred on its axis as each word lands (the row's width eases to include the new word: `recentredRow()`), or anchor it on a strong margin on purpose. Break long lines by meaning into two rows, and never re-flow a row once a word is on it.
+- **Hierarchy per line:** one word large (the word the line is about), the rest at reading size; the large word gets the device. Readable at phone size and inside `SAFE`, as everywhere.
+- **Pickups cross cuts and parts.** A word sung before the downbeat appears before the cut and carries across it unchanged ([music-video.md](music-video.md#pickups-and-carries-across-part-boundaries)).
+
 ## Colour and light
 
 - **Restrained palette:** background, a raised tone, the ink colour, a muted grey, and one accent. A second accent only if it owns one moment.
@@ -135,6 +148,8 @@ When the motion shows real recorded events (requests, tokens, moves, scores), th
 
 A default narrator voice reading the on-screen text over wall-to-wall music, purple/cyan neon cyberpunk by default, glowing brains, circuit boards, matrix code rain, lens-flare soup, generic particle nebulae, floating 3D blobs, stock "AI" imagery, waveform/equaliser bars as decoration, everything centred, every element fading in the same way, emoji, text that flashes too fast to read, claims the product can't back up, copying another brand's or artist's look.
 
+**Don't recreate recognisable trademarked characters** (a famous mascot, a well-known assistant, a cartoon character), even when the song mentions or evokes one. Abstract the idea into the piece's own visual language: build it from the piece's own marks (the same wire, the same light, the same palette) and leave out the signature features (the face, the colours, the outline) that would read as someone else's character.
+
 ## Checklist before any render
 
 - [ ] There's a wow moment people would replay, on the music's peak, prototyped first and polished most.
@@ -159,4 +174,5 @@ A default narrator voice reading the on-screen text over wall-to-wall music, pur
 - [ ] Every settled frame postable; poster chosen at a settled, strong moment.
 - [ ] The end card holds still ≥ 1.5 s with the name, the offer and where to go.
 - [ ] Real product, real copy; nothing invented.
+- [ ] Lyrics: words enter on their sung onsets (not the grid), exits cut to zero before the next line, one device per line, type in screen space.
 - [ ] No `SCENE ERRORS`; typecheck clean.
