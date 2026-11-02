@@ -14,12 +14,15 @@ src/engine/looks.ts    materials and custom shaders (look development)
 src/engine/swarm.ts    thousands of instances flying between formations (text, logo, grid, cloud)
 src/engine/voice.ts    voice-over lines placed on the grid (pure: shared by the browser and the scripts)
 src/engine/captions.ts burned-in captions from the voice's word timings (an overlay after post)
+src/engine/lyrics.ts   sung lyrics from public/lyrics.json (word onsets) and the lyric typography timing helpers
 src/engine/        format/safe areas, gl helpers, post chain, audio data, type helpers, engine
 scripts/render.ts  offline renderer: stills, sheet, video, poster (headless Chrome -> raw frames -> ffmpeg)
 scripts/analyze_audio.py   music -> public/audio.json (uv + librosa)
 scripts/prep_clip.ts       video -> public/clips/<name>/ frame sequence, optional green/blue screen key + QA sheet
 scripts/comfy.ts           ComfyUI batch runner: API workflow + overrides, one job per varied value, downloads + takes.json
 scripts/voice.ts           voice-over: voices, design, audition, render takes (word timings, -16 LUFS), cues + SRT
+scripts/lyrics_align.py    sung lyrics -> public/lyrics.json: word timing from a local Whisper model (offline, provisional)
+scripts/parts.py           long pieces in parts: frame plan, exact audio crop + edit-time music map per part, join
 public/            media/, fonts/, audio/, audio.json: everything scenes load by URL
 ```
 
@@ -95,6 +98,7 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - `looks.ts`: `customLook(glsl)` (write your own fragment body), starting looks `halftone`, `gooch`, `rimGlow`, `holo`; physical `glass`, `metal`, `iridescent` with `studioEnvironment`; `addRim`, `addGrain` inject GLSL into any lit material. See [lookdev.md](lookdev.md).
 - `swarm.ts`: `new Swarm(count, geometry, material, startPoints, size)` is an `InstancedMesh` of thousands of pieces; `.to({ to, t0, dur, stagger, arc, order, ease })` queues formation changes (chained), `.update(f.t, { spin })` places every piece in closed form. Formations: `cloud`, `grid`, `sphere`, `pointsFromText(text, font, count, width)`, `pointsFromImage(logo, count, width)`. Size the target formation from the camera's final view (portrait frames are narrow). See `scenes/assemble.ts`.
 - `clip.ts`: `await Clip.load(name)` in `init()` (frames from `public/clips/<name>/`, made by `scripts/prep_clip.ts`), then `clip.frame(lt, { speed, mode: 'hold' | 'loop' | 'pingpong', offset })` returns the frame for a local time, or `clip.drawFit(ctx, lt, x, y, w, h, opts)` draws it so the keyed subject's bounding box fits the rect. Draw with `shadowBlur` for a soft shadow cast from its alpha.
+- `lyrics.ts`: `await Lyrics.load('lyrics.json', editZero)` (lines and words shifted into the part's edit time; `line(id)`, `span(id)`), `glyphIn(t, start, i, { stagger, dur, steps })` per-glyph entrance on the sung onset, `typedChars(t, start, end, n)`, `afterglow(t, off)` (`{ a, tint }`: tint to the accent, exponential decay, hard cut), `recentredRow(widths, starts, t, cx, gap)` (a row that stays centred as words arrive), `envAt(env, fps, t)`, `mixRGB`. See [craft.md](craft.md#lyric-typography) and [music-video.md](music-video.md).
 - `scenes/_shared.ts`: `LIN` (brand colours, linear), `glow(key, k)`, `BgField` (the two-tone drifting background with an accent light), `brandFill` (the brand gradient as a fill style). Put the piece's own recurring motif here too.
 
 ### Recipes
@@ -113,6 +117,139 @@ Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), e
 - **Counters:** `Math.round(lerp(a, b, prog(t, t0, t1, ease.outCubic)))` in tabular mono figures (so the width doesn't jiggle).
 - **Custom transition:** set `handlesTransition = true`, overlap the entries in the timeline, and composite `f.under` yourself using `f.tin` (e.g. the new scene grows out of a circle from the motif's position).
 - **Shaders:** backgrounds, light, displacement and glitch as `FSPass`es; sample a previous layer's texture as a uniform to warp it.
+
+## Techniques
+
+Worked snippets from a full-song build (one `FSPass` per scene that does the picture, the effects and the type in one final shader). In GLSL, `P = vec2(vUv.x, 1.0 - vUv.y)` is the top-left position (y down) and `accent` the accent colour in linear HDR.
+
+**Two type voices in the final shader.** Draw each voice into its own `Layer2D` (the human one with a soft `shadowBlur` in the canvas), pass both textures, and composite after the picture. Layer textures are premultiplied: divide by alpha before converting to linear.
+
+```glsl
+vec4 h = texture(HUM, vUv), m = texture(MAC, vUv);           // Layer2D textures: sample with vUv
+vec3 hc = h.a > 1e-4 ? toLinear(clamp(h.rgb / h.a, 0.0, 1.0)) : vec3(0.0);
+vec3 mc = m.a > 1e-4 ? toLinear(clamp(m.rgb / m.a, 0.0, 1.0)) : vec3(0.0);
+float scan = 0.62 + 0.38 * cos(FRAG_PX.y * 6.28318 / 3.0);   // the picture's own scanlines
+c = c * (1.0 - h.a) + hc * h.a;                              // alpha-over: sits on the picture, shadow and all
+c += mc * m.a * scan * 1.9;                                  // added as light: over 1, so it blooms
+```
+
+**A colour-key mask: effects inside a plate's glass or screen, without tracking.** When a generated plate has a screen, a window or a pane of glass with a distinct colour, find it by that colour in every frame and confine the effect to it; it follows the plate's own camera move and survives replacing the stand-in with the real clip. Key on the raw (sRGB) sample and average a few taps, so the mask is stable and soft-edged:
+
+```glsl
+float key(vec3 c) {                     // teal glass: green over red and blue, and not too dark
+  return smoothstep(0.012, 0.06, c.g - max(c.r * 0.95, c.b * 0.8)) * smoothstep(0.07, 0.18, c.g);
+}
+float maskAt(vec2 P) {
+  vec2 o = 5.0 / uRes;                   // 5 px taps
+  return (key(raw(P)) + key(raw(P + vec2(o.x, 0.0))) + key(raw(P - vec2(o.x, 0.0)))
+        + key(raw(P + vec2(0.0, o.y))) + key(raw(P - vec2(0.0, o.y)))) / 5.0;
+}
+// c = mix(c, phosphor(c), maskAt(P));  spill onto the room: the mask sampled on a wider ring of taps
+```
+
+Tune the thresholds by rendering the mask itself as the output for a few frames across the shot.
+
+**Frame-pair blending for slowed plates.** A 24 fps plate played at half speed steps every other frame. Upload the two frames around the local time and mix them by the fraction; cache the textures by frame index (an LRU of ~32 is plenty).
+
+```ts
+const f = clamp(lt * clip.m.fps, 0, clip.m.count - 1), i = Math.floor(f), j = Math.min(i + 1, clip.m.count - 1);
+u.A0!.value = tex(i); u.A1!.value = tex(j); u.k!.value = f - i;   // GLSL: mix(texture(A0, P), texture(A1, P), k)
+```
+
+**A scan-line wipe between two worlds** (a 2D shader world and the 3D stage, or two plates). The new world is drawn in above a bright line sweeping down the frame, over ~0.18 s starting just before the downbeat; the line's hot core blooms.
+
+```glsl
+uniform sampler2D S3D; uniform float wipe;                     // 0..1 during the cut, -1 otherwise
+vec3 c = use3d > 0.5 ? texture(S3D, vUv).rgb : world2d(P);
+if (wipe >= 0.0) {
+  c = P.y < wipe ? texture(S3D, vUv).rgb : world2d(P);         // into the stage (swap the two to leave it)
+  float d = abs(P.y - wipe) * uRes.y;
+  c += accent * (exp(-d / 1.5) * 3.5 + exp(-d / 26.0) * 0.5);
+}
+```
+
+**CRT power-on and power-off.** On: a dot, which stretches into a horizontal line, which opens into the raster (slow for an opening, ~2-3 s; fast, ~0.4 s, as a cut). Off: the picture squeezes vertically to a line, then horizontally to a dot, getting brighter as it shrinks, and the dot fades.
+
+```glsl
+// on: dotR 0 -> 0.02, then lineW 0 -> 1, then open 0 -> 1
+float ax = abs(P.x - 0.5), ay = abs(P.y - 0.5);
+float raster = step(ax, lineW * 0.5) * smoothstep(open * 0.5 + 0.002, open * 0.5 - 0.002, ay);
+float lineGlow = exp(-ay * ay / (3.5e-6 + open * open * 0.02)) * step(ax, lineW * 0.5) * (1.0 - open) * 4.0;
+float dotGlow = exp(-dot(P - 0.5, P - 0.5) / (dotR * dotR + 1e-6)) * 3.5 * (1.0 - step(0.001, lineW));
+c = c * raster + accent * (lineGlow + dotGlow);
+
+// off: sy 1 -> 0.004 (to a line), then sx 1 -> 0.002 (to a dot), then dotA 1 -> 0
+vec2 Q = 0.5 + (P - 0.5) / vec2(sx, sy);
+float inside = step(0.0, Q.x) * step(Q.x, 1.0) * step(0.0, Q.y) * step(Q.y, 1.0);
+c = picture(Q) * inside * pow(1.0 / max(sx * sy, 0.002), 0.25);
+vec2 d = (P - 0.5) * vec2(uRes.x / uRes.y, 1.0);
+c += accent * dotA * (exp(-dot(d, d) / 0.0002) * 3.0 + exp(-dot(d, d) / 0.004) * 0.4);
+```
+
+**Droste frames and a seamless infinite dive.** A frame inside the picture (centre `dc`, scale `ds` of the whole frame) shows the whole picture again, and inside it again. Map the position into each level until it falls outside that level's frame:
+
+```glsl
+vec2 R = Q; float S = 1.0, depth = 0.0;
+for (int i = 0; i < 4; i++) {
+  vec2 n = dc + (Q - dc) / (S * ds);
+  if (n.x < 0.0 || n.x > 1.0 || n.y < 0.0 || n.y > 1.0) break;
+  S *= ds; R = n; depth += 1.0;
+}
+vec3 c = picture(R) * pow(0.88, depth);     // each level a little darker; draw a thin rim at each frame edge
+```
+
+For a dive that never ends, zoom about `dc` by the fractional part of the depth: at zoom `1/ds` level k looks exactly like level k+1 at zoom 1, so the wrap is invisible. Drive the depth linearly (constant perceived speed is constant speed in log zoom), and ease the depth, never the zoom.
+
+```ts
+const d = levelsDeep(t);                               // e.g. 0.75 levels per second, faster into the end
+u.zoom!.value = Math.pow(DS, -(d - Math.floor(d)));   // 1 .. 1/DS, then wraps
+u.rot!.value = -0.12 * d;                              // a roll tied to the depth stays continuous too
+// a pull-out through three levels: zoom = Math.exp(Math.log(1 / DS ** 3) * (1 - ease(p)))
+```
+
+The picture must be the same at every level (a still, a procedural world, or one frame of a plate per output frame).
+
+**A 3D wire and its 2D line from one path.** When a line drawn in 2D becomes a physical object (a glowing line becomes a bent-wire sculpture, a signature becomes a neon sign), make both from one arc-length-parametrised path: the 2D stroke draws `pathPoint(u)`, the 3D object is a tube along the same points. Match the 3D camera to the 2D framing at the hand-off and cut on the beat.
+
+```ts
+export function pathPoint(u: number): [number, number] { /* lines and arcs, walked by arc length u * total */ }
+for (let i = 0; i <= 400; i++) { const [x, y] = pathPoint(i / 400); /* 2D: lineTo(cx + x * S, cy - y * S) */ }
+const pts = Array.from({ length: 240 }, (_, i) => { const [x, y] = pathPoint(i / 239); return new THREE.Vector3(x, 0, -y); });
+const wire = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 480, 0.045, 12, false), metal);
+```
+
+**An environment from emissive panels, so metal reads without HDR files.** Metal reflects its environment; with none it is black. Build a tiny scene of bright cards (a warm softbox, a long strip for a clean highlight, a card in the accent colour) and prefilter it with PMREM. You choose exactly what the metal reflects, including the piece's own accent light.
+
+```ts
+const env = new THREE.Scene(); env.background = new THREE.Color(0x0b0a09);
+const panel = (hex: number, k: number, x: number, y: number, z: number, w: number, h: number) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(k), side: THREE.DoubleSide }));
+  m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m);
+};
+panel(0xffe2c0, 6, 10, 14, 6, 14, 8); panel(0xffffff, 1.2, 0, 20, -14, 30, 4); panel(0x66d9ff, 3, -16, 6, -6, 10, 7);
+const pm = new THREE.PMREMGenerator(renderer);
+stage.scene.environment = pm.fromScene(env, 0.03).texture; pm.dispose();
+// metal: metalness 1, roughness 0.2, envMapIntensity 1.5; paper and matte surfaces: envMapIntensity 0.1-0.2
+```
+
+**Morphing between two polylines by arc length.** Sample both shapes at the same arc-length fractions and interpolate point by point; one line then becomes the other without bunching. Start both at the corresponding point and run them in the same direction, or the line twists through itself.
+
+```ts
+function sampler(pts: [number, number][]) {
+  const acc = [0];
+  for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1]! + Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]));
+  const total = acc[acc.length - 1]!;
+  return (u: number): [number, number] => {
+    const d = clamp(u) * total; let i = 1;
+    while (i < acc.length - 1 && acc[i]! < d) i++;
+    const k = (d - acc[i - 1]!) / Math.max(1e-6, acc[i]! - acc[i - 1]!);
+    return [lerp(pts[i - 1]![0], pts[i]![0], k), lerp(pts[i - 1]![1], pts[i]![1], k)];
+  };
+}
+const A = sampler(shapeA), B = sampler(shapeB);
+for (let i = 0; i <= 400; i++) { const [ax, ay] = A(i / 400), [bx, by] = B(i / 400); /* lineTo(lerp(ax, bx, k), lerp(ay, by, k)) */ }
+```
 
 ## Voice and captions
 
@@ -153,6 +290,14 @@ An exported frame costs `sub-frames × (scene render) + readback`. Measured on a
 
 - `sheet --from 12.4 --to 13.6 --every 0.1 --crop x,y,w,h --cell 240 --samples 4`: a motion strip, cropped (logical px) to the element that moves. Contact sheets can't show whether a motion is right (a piece that should fall, a card that should land); a 10 fps strip of the region can.
 - `check --t 6.5,10.9,18 --formats landscape,square`: the same moments in every format, one labelled row per format. Collisions and cut-off footers usually appear in only one format, so check the format you aren't looking at.
+
+## Gotchas
+
+- **Texture orientation.** `ImageBitmap` uploads ignore `flipY` (clip frames are ImageBitmaps): row 0 is the image's top, so a shader samples them with the top-left `v` (`vec2(vUv.x, 1.0 - vUv.y)`). `CanvasTexture` (every `Layer2D`) has `flipY = true` and samples with plain `vUv`. A shader that mixes both uses both, on purpose; a plate that appears upside down is this.
+- **Guard `exp()` of a distance that can go negative.** `exp(-px / 0.9)` for a glow around a frame edge, a line or an onset blows up to infinity when the distance is negative (outside the frame, before the event), and an infinity or NaN in a half-float target turns into a white or black block through bloom. Clamp first: `exp(-max(px, 0.0) / 0.9)` or `abs(px)`; in TypeScript, `Math.exp(-Math.max(0, t - t0) * k)`.
+- **Write text files as UTF-8, explicitly, on Windows.** Python's `open(path, 'w')` and `Path.write_text()` default to the locale's code page (cp1252), so an em dash or a typographic quote in lyrics, JSON or Markdown is written as a different byte and comes back as mojibake. Always pass `encoding='utf-8'` (and `ensure_ascii=False` for readable JSON), reconfigure stdout to UTF-8 before printing lyrics, and in Windows PowerShell 5 use `Set-Content -Encoding utf8`. Text mode also turns `\n` into `\r\n` there: when a script rewrites a file in the repo, pass `newline='\n'` too, or every line shows as changed.
+- **Python heredocs inside a bash tool call can fail to parse** (quotes, `$`, backslashes, CRLF line ends). Write the script to a file and run the file.
+- **Validators follow the part.** Per-part tests (frame counts, crop sample ranges, end times) must change in the same edit as the part's length; see [music-video.md](music-video.md#validators-per-part).
 
 ## Debugging
 

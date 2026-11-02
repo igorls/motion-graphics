@@ -174,7 +174,7 @@ def main():
         "moments": ([{"kind": x["kind"], "time": x["time"], "bar": x["bar"]} for x in mm["drops"]]
                     + [{"kind": x["kind"], "time": x["time"], "bar": x["bar"]} for x in mm["moments"] if x["kind"] != "drop"]) if mm else [],
     }
-    with open(a.out, "w") as f:
+    with open(a.out, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"))
     print(f"{a.out}: {tempo:.2f} BPM, {len(beats)} beats, {len(downbeats)} bars (downbeat = beat {off}), {dur:.2f} s")
     if mm:

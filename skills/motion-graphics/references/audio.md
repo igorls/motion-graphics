@@ -8,6 +8,7 @@ Most feed video autoplays muted, and many people never unmute. The piece must ma
 
 - **Where music comes from:** a track the user supplies, music you generate with an available model ([generative-music.md](generative-music.md): compose to the edit), or silence (the user can add a track in the platform's editor; Instagram's in-app library is often unavailable to business accounts and ads). Never download music from the web on your own. Rights and licences are the user's call: record where each track came from.
 - **Trim to length on a phrase.** Pick a start where a phrase begins (a downbeat, often bar 1 of a section) and end on a phrase boundary with a short fade (the renderer fades the last 0.6 s). If the track's intro is slow, start at its drop so the hook has energy.
+- **A music video is the exception:** the song is the piece and is used unchanged (no trim fades, no levelling). Each part gets an exact crop of the master, renders silent, and the join muxes one crop of the whole span ([music-video.md](music-video.md)). Sung words are timed from the vocal, never from the beat grid.
 - **Levels.** Bring the master to about -14 LUFS integrated for social (`ffmpeg -af loudnorm=I=-14:TP=-1.5:LRA=11` on the track before analysis and render).
 
 ## Analysis → `public/audio.json` and the music map
