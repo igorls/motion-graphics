@@ -397,10 +397,32 @@ async function extractVideoFrames(video: string, fps: number, frames: number[], 
   return got;
 }
 
-async function extractLiveFrames(d: Doc, project: string, frames: number[], dir: string) {
+// a notes file can come from anyone, so it never picks what runs or what gets written:
+// live notes sit at <project>/out/live*.markup.json, and --project overrides that
+function liveProject(docPath: string) {
+  const project = path.resolve(opt('project') ?? path.join(path.dirname(docPath), '..'));
+  if (!existsSync(path.join(project, 'scripts', 'render.ts'))) throw new Error(`no scripts/render.ts in ${project}; pass --project <dir>`);
+  return project;
+}
+
+// --url as given; the one remembered in the notes file only when it is a loopback http server
+function liveUrl(d: Doc) {
+  const given = opt('url');
+  if (given) return given.replace(/\/$/, '');
+  const u = d.source.type === 'live' ? d.source.url : undefined;
+  if (!u) return undefined;
+  try {
+    const p = new URL(u);
+    if (p.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(p.hostname)) return p.origin;
+  } catch {}
+  console.warn(`ignoring source.url ${JSON.stringify(u)} from the notes file (not loopback http); pass --url to use a server`);
+  return undefined;
+}
+
+async function extractLiveFrames(d: Doc, project: string, url: string | undefined, frames: number[], dir: string) {
   // the project's own renderer, one browser for all of them; it names stills f_<t to 2 decimals>.png
   const times = frames.map((k) => k / d.fps);
-  const fmt = d.source.type === 'live' ? d.source.format : '', url = d.source.type === 'live' ? d.source.url : undefined;
+  const fmt = d.source.type === 'live' ? d.source.format : '';
   const args = [process.execPath, path.join(project, 'scripts', 'render.ts'), 'stills', '--t', times.map((t) => t.toFixed(6)).join(','), '--out', dir,
     ...(fmt ? ['--format', fmt] : []), ...(url ? ['--url', url] : [])];
   const p = Bun.spawn(args, { cwd: project, stdout: 'pipe', stderr: 'inherit' });
@@ -426,7 +448,7 @@ async function exportNotes() {
   rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
   const got = d.source.type === 'video'
     ? await extractVideoFrames(path.join(root, d.source.file), d.fps, need, tmp)
-    : await extractLiveFrames(d, path.resolve(root, d.source.project), need, tmp);
+    : await extractLiveFrames(d, liveProject(docPath), liveUrl(d), need, tmp);
 
   const browser = await launch();
   const stills: Record<string, string> = {};
@@ -580,7 +602,7 @@ else if (mode === 'revert') {
   // revert <notes.markup.json> n7: undo a kept control change in tune.json (live notes)
   const docPath = docPathFor(argv[1] ?? ''), d = readDoc(docPath);
   if (d.source.type !== 'live') throw new Error('revert works on live notes (out/live*.markup.json)');
-  const n = revertChange(docPath, path.join(path.resolve(path.dirname(docPath), d.source.project), 'public', 'tune.json'), argv[2] ?? '');
+  const n = revertChange(docPath, path.join(liveProject(docPath), 'public', 'tune.json'), argv[2] ?? '');
   console.log(`${n.id} reverted: ${changeLine(n.tune!.set, n.tune!.was)}`);
 }
 else throw new Error(`unknown mode ${mode} (serve, export, resolve, revert, propose)`);
