@@ -1,6 +1,6 @@
 // HOOK: kinetic type. One word lands per beat, stacked to fill the safe area; the accent word
 // glows. It holds long enough to read, then the whole stack whips up and out into the next cut.
-// params: { words: string[], accent?: number (index), step?: beats between words }
+// params: { words: string[] } plus the controls below (tunable from the markup page; see engine/controls.ts)
 import type * as THREE from 'three';
 import { Scene, type Frame } from '../engine/scene';
 import { Layer2D } from '../engine/gl';
@@ -8,26 +8,39 @@ import { font, fitSize } from '../engine/type';
 import { ease, prog, pulse } from '../engine/util';
 import { brand } from '../brand';
 import { BgField, glow } from './_shared';
+import type { Controls } from '../engine/controls';
 
 export default class Hook extends Scene {
+  static controls = {
+    step: { type: 'number', min: 0.25, max: 2, step: 0.25, default: 1, unit: 'beats', label: 'Beats between words' },
+    accent: { type: 'int', min: 0, max: 7, default: 2, label: 'Accent word (index)' },
+    snap: { type: 'number', min: 0.08, max: 0.8, step: 0.01, default: 0.32, unit: 's', label: 'Snap-in time' },
+    ease: { type: 'enum', options: ['outExpo', 'outBack', 'outCubic'], default: 'outExpo', label: 'Snap-in ease' },
+    glow: { type: 'number', min: 0, max: 3, step: 0.05, default: 1.6, label: 'Accent glow' },
+    stack: { type: 'group', label: 'Word stack', controls: {
+      y: { type: 'number', min: -0.25, max: 0.25, step: 0.005, default: 0, unit: 'frame h', label: 'Vertical offset' },
+      size: { type: 'number', min: 0.5, max: 1.2, step: 0.01, default: 1, unit: '×', label: 'Size' },
+    } },
+  } satisfies Controls;
+
   bg = new BgField();
   text = new Layer2D();
   glowL = new Layer2D();
   words: string[] = this.ctx.params.words ?? ['Make', 'it', 'move.'];
-  accent: number = this.ctx.params.accent ?? this.words.length - 1;
+  accent: number = Math.min(this.ctx.params.accent, this.words.length - 1);
   size = 0;
   lineH = 0;
   landAt: number[] = [];
 
   init() {
     const { SAFE, audio, start } = this.ctx;
-    const step: number = this.ctx.params.step ?? 1;
+    const step: number = this.ctx.params.step;
     // word i lands on beat i (after the first beat at/after the cut); times come from the grid, never hard-coded
     const b0 = Math.ceil(audio.beatAt(start) - 1e-3);
     this.landAt = this.words.map((_, i) => audio.timeOfBeat(b0 + i * step));
     const c = this.text.ctx;
     const maxByHeight = (SAFE.h * 0.9) / this.words.length / 0.92;
-    this.size = fitSize(c, this.words.map((w) => w.toUpperCase()), brand.fonts.display, 800, SAFE.w, Math.min(maxByHeight, SAFE.w * 0.42));
+    this.size = fitSize(c, this.words.map((w) => w.toUpperCase()), brand.fonts.display, 800, SAFE.w, Math.min(maxByHeight, SAFE.w * 0.42)) * this.ctx.params.stack.size;
     this.lineH = this.size * 0.92;
   }
 
@@ -35,7 +48,7 @@ export default class Hook extends Scene {
     const { renderer, comp, SAFE, end } = this.ctx;
     const cx = SAFE.x + SAFE.w / 2;
     const blockH = this.lineH * this.words.length;
-    const top = SAFE.y + (SAFE.h - blockH) / 2;
+    const top = SAFE.y + (SAFE.h - blockH) / 2 + this.ctx.params.stack.y * this.ctx.H;
 
     // exit: the stack accelerates upward over the last 0.35 s (motion blur turns it into a streak)
     const exit = prog(f.t, end - 0.35, end, ease.inExpo);
@@ -50,7 +63,7 @@ export default class Hook extends Scene {
     this.words.forEach((w, i) => {
       const t0 = this.landAt[i]!;
       if (f.t < t0 - 0.02) return;
-      const k = prog(f.t, t0, t0 + 0.32, ease.outExpo); // snap in, then hold still
+      const k = prog(f.t, t0, t0 + this.ctx.params.snap, ease[this.ctx.params.ease as keyof typeof ease]); // snap in, then hold still
       const scale = 1.35 - 0.35 * k;
       const y = top + this.lineH * (i + 0.82) + (1 - k) * this.size * 0.35 + exitY;
       c.save();
@@ -71,7 +84,7 @@ export default class Hook extends Scene {
         g.restore();
       }
     });
-    comp.draw(renderer, this.glowL.upload(), out, { mode: 'add', tint: glow('accent', 1.6) });
+    comp.draw(renderer, this.glowL.upload(), out, { mode: 'add', tint: glow('accent', this.ctx.params.glow) });
     comp.draw(renderer, this.text.upload(), out);
 
     // punctuation: a punch-in and a small flash when the accent word lands

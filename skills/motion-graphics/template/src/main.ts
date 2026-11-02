@@ -10,6 +10,7 @@ import { project } from './project';
 import { makeTimeline } from './timeline';
 import { loadVoice, type VoCue } from './engine/voice';
 import { Captions } from './engine/captions';
+import { loadTune } from './engine/controls';
 
 const q = new URLSearchParams(location.search);
 const exportMode = q.has('export');
@@ -22,13 +23,14 @@ async function boot() {
   document.body.classList.toggle('export', exportMode);
   const canvas = document.getElementById('c') as HTMLCanvasElement;
   const engine = new Engine(canvas);
-  const [audio] = await Promise.all([
+  const [audio, , tune] = await Promise.all([
     // silent pieces skip the fetch and get a steady grid from project.bpm
     Audio.load(project.music ? 'audio.json' : '', { bpm: project.bpm, duration: project.duration, beatsPerBar: project.beatsPerBar }),
     loadFonts([brand.fonts.display, brand.fonts.body, brand.fonts.mono]),
+    loadTune(),
   ]);
   const timeline = makeTimeline(audio);
-  await engine.init(audio, timeline, only);
+  await engine.init(audio, timeline, only, tune);
   // the voice-over, placed on the grid; captions are an overlay over the finished frame
   let cues: VoCue[] = [];
   try {
@@ -50,6 +52,10 @@ async function boot() {
     timeline: timeline.map((e) => ({ id: e.id, start: e.start, end: e.end })),
     /** Render one frame at t to the canvas. */
     still(t: number, samples: Sampling = 1, shutter = 0.5) { return engine.render(t, 1 / FPS, true, samples, shutter); },
+    /** The timeline entries with their declared controls and current values (see engine/controls.ts). */
+    blocks() { return engine.blocks(); },
+    /** Override one entry's controls in memory and rebuild it; render again to see it. null removes an override. */
+    tune(id: string, patch: Record<string, unknown>) { return engine.tune(id, patch); },
     /** The canvas as a PNG (base64), full physical resolution. */
     png() { return canvas.toDataURL('image/png').split(',')[1]; },
     /** Stream raw RGBA frames [from, to) to a WebSocket; the server acks each frame so memory stays bounded. */

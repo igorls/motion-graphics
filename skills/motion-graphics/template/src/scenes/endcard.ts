@@ -1,7 +1,7 @@
 // END CARD: logo, tagline, call to action. Everything lands on beats and then SETTLES: the last
 // ~1.5 s hold still, because this is the frame people screenshot and the natural poster.
-// params: { tagline?: string, cta?: string, url?: string, step?: beats between entrances (default 1; 0.5 at fast tempos
-//           so the card still holds >= 1.5 s), fadeOut?: boolean }
+// params: { tagline?: string, cta?: string, url?: string } plus the controls below (step: 0.5 at fast tempos so
+// the card still holds >= 1.5 s)
 import type * as THREE from 'three';
 import { Scene, type Frame } from '../engine/scene';
 import { Layer2D, loadImage } from '../engine/gl';
@@ -9,8 +9,18 @@ import { font, fitSize } from '../engine/type';
 import { ease, prog, springStep, rgba } from '../engine/util';
 import { brand } from '../brand';
 import { BgField, brandFill, glow } from './_shared';
+import type { Controls } from '../engine/controls';
 
 export default class EndCard extends Scene {
+  static controls = {
+    step: { type: 'number', min: 0.25, max: 2, step: 0.25, default: 1, unit: 'beats', label: 'Beats between entrances' },
+    glow: { type: 'number', min: 0, max: 3, step: 0.05, default: 1.4, label: 'Glow' },
+    pill: { type: 'group', label: 'Call-to-action pill', controls: {
+      color: { type: 'color', default: brand.colors.accent, label: 'Pill colour' },
+    } },
+    fadeOut: { type: 'bool', default: false, label: 'Fade out at the end' },
+  } satisfies Controls;
+
   bg = new BgField();
   text = new Layer2D();
   glowL = new Layer2D();
@@ -33,7 +43,7 @@ export default class EndCard extends Scene {
 
   render(f: Frame, out: THREE.WebGLRenderTarget) {
     const { renderer, comp, SAFE, audio } = this.ctx;
-    const step: number = this.ctx.params.step ?? 1;
+    const step: number = this.ctx.params.step;
     const B = (i: number) => audio.timeOfBeat(this.b0 + i * step);
     const cx = SAFE.x + SAFE.w / 2;
     const cy = SAFE.y + SAFE.h * 0.42;
@@ -84,7 +94,7 @@ export default class EndCard extends Scene {
       const tw = c.measureText(this.cta).width;
       const pw = tw + px * 2.2, ph = px * 2.3, py = cy + this.nameSize * 2.0;
       c.save(); c.translate(cx, py); c.scale(s3, s3);
-      c.fillStyle = brand.colors.accent;
+      c.fillStyle = this.ctx.params.pill.color;
       c.beginPath(); c.roundRect(-pw / 2, -ph / 2, pw, ph, ph / 2); c.fill();
       c.fillStyle = brand.colors.bg;
       c.fillText(this.cta, 0, 2);
@@ -97,7 +107,7 @@ export default class EndCard extends Scene {
       c.fillStyle = rgba(brand.colors.muted, prog(f.t, B(3.5), B(3.5) + 0.3));
       c.fillText(this.url, cx, py + ph * 1.1);
     }
-    comp.draw(renderer, this.glowL.upload(), out, { mode: 'add', tint: glow('accent', 1.4) });
+    comp.draw(renderer, this.glowL.upload(), out, { mode: 'add', tint: glow('accent', this.ctx.params.glow) });
     comp.draw(renderer, this.text.upload(), out);
     return { bloom: 0.7, fade: prog(f.t, f.end - 0.25, f.end) * (this.ctx.params.fadeOut ? 1 : 0) };
   }

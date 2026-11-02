@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markup</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/__markup/style.css" />
+  </head>
+  <body>
+    <header id="top">
+      <div class="title"><b id="file">…</b><span id="meta"></span></div>
+      <div id="banner" hidden></div>
+      <label class="author">Author <input id="author" size="12" spellcheck="false" /></label>
+      <span id="saved" class="saved">loading…</span>
+    </header>
+    <main>
+      <section id="left">
+        <div id="stage"><div id="wrap"><canvas id="ov"></canvas></div></div>
+        <div id="transport">
+          <button id="bScenePrev" title="Previous scene  [">⏮</button>
+          <button id="bPrev" title="Previous frame  ←  (Shift: 1 s)">◀︎|</button>
+          <button id="bPlay" class="play" title="Play / pause  Space">▶︎</button>
+          <button id="bNext" title="Next frame  →  (Shift: 1 s)">|▶︎</button>
+          <button id="bSceneNext" title="Next scene  ]">⏭</button>
+          <span id="clock">0:00.000</span>
+          <span id="frameNo">f 0</span>
+          <span id="sceneNow" class="chip"></span>
+          <span class="grow"></span>
+          <button id="bIn" title="Mark in  I">In</button>
+          <button id="bOut" title="Mark out  O">Out</button>
+          <span id="marks"></span>
+          <select id="rate" title="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
+          <button id="bFit" title="Show the whole timeline (Ctrl+wheel zooms)">Fit</button>
+        </div>
+        <canvas id="tl"></canvas>
+      </section>
+      <aside id="right">
+        <div id="tools">
+          <button data-tool="select" title="Select a note on the frame  V">Select <kbd>V</kbd></button>
+          <button data-tool="pin" title="Click the frame to drop a pin  P">Pin <kbd>P</kbd></button>
+          <button data-tool="box" title="Drag a box over a region  B">Box <kbd>B</kbd></button>
+          <button data-tool="draw" title="Draw freehand; several strokes make one note  D">Draw <kbd>D</kbd></button>
+          <button id="bFrameNote" title="A note on this frame, no drawing  N">Frame note <kbd>N</kbd></button>
+          <button id="bRangeNote" title="A note on the in→out range  R">Range note <kbd>R</kbd></button>
+        </div>
+        <div id="block" hidden>
+          <div class="bhead"><b id="bName"></b><span id="bMeta"></span></div>
+          <div id="bCtl"></div>
+          <div id="bPending" hidden>
+            <div id="bDiff"></div>
+            <input id="bWhy" placeholder="Why (optional), e.g. the accent is too bright" spellcheck="false" />
+            <div class="row"><button id="bKeep" class="primary" title="Write to public/tune.json and log the change">Keep</button><button id="bRevert" title="Back to the values before these changes">Revert</button></div>
+          </div>
+        </div>
+        <div id="composer" hidden>
+          <div id="cCtx" class="ctx"></div>
+          <label id="cRangeRow" class="row"><input type="checkbox" id="cRange" /> <span id="cRangeLbl"></span></label>
+          <textarea id="cText" rows="4" placeholder="What should change here?"></textarea>
+          <div class="row"><button id="cSave" class="primary">Save note <kbd>Enter</kbd></button><button id="cCancel">Cancel <kbd>Esc</kbd></button></div>
+          <div class="hint">Shift+Enter for a new line. With Draw, keep drawing to add strokes to this note.</div>
+        </div>
+        <div id="listHead">
+          <b>Notes</b><span id="counts"></span>
+          <span class="grow"></span>
+          <label><input type="checkbox" id="showResolved" /> resolved</label>
+        </div>
+        <ol id="notes"></ol>
+        <div class="keys">Space play · ←/→ frame (Shift 1 s) · wheel on the timeline steps frames, Ctrl+wheel zooms · [ ] scene · I/O in/out · Del deletes the selected note</div>
+      </aside>
+    </main>
+    <script src="/__markup/draw.js"></script>
+    <script type="module" src="/__markup/app.js"></script>
+  </body>
+</html>
