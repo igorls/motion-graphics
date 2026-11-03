@@ -25,15 +25,25 @@
 // counts make the blocks (named after the part folder for <part>/out/<file>.mp4). A video under a project's
 // out/ gets that project's timeline by default.
 //
+// The audio strip under the timeline (scripts/markup/spec.ts): a spectrogram of the video's audio track,
+// computed once when the server starts, with the beat grid and the sung word onsets on it.
+//   --audio <wav>     a second source to toggle to (a vocal stem); it must be sample-aligned to the video
+//   --lyrics <json>   lyrics.json (lines[].words[] with start/end in song seconds) for the word onsets
+//   --beats <json>    audio.json for beats and downbeats (default: the project's public/audio.json)
+//   --zero <s>        song time of the video's first frame, for the lyrics (default: audio.json's editZero,
+//                     else a parts manifest's first start, else 0)
+//
 // Look at every still the export writes (open the PNGs): that is what the reviewer pointed at.
 import { chromium, type Browser } from 'playwright-core';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, statSync, readdirSync, rmSync, watch } from 'node:fs';
 import path from 'node:path';
+import { SR, decode, audioLead, spectrogram, marks, lengthCheck, type Spec } from './markup/spec';
 
 const argv = process.argv.slice(2);
 const mode = argv[0] ?? 'serve';
 const opt = (k: string, d?: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
 const flag = (k: string) => argv.includes(`--${k}`);
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const APP = path.resolve(import.meta.dir, '..');
 const UI = path.join(import.meta.dir, 'markup');
 
@@ -231,14 +241,59 @@ async function serve() {
   }
 
   const mtime = (p: string | null) => (p && existsSync(p) ? statSync(p).mtimeMs : 0);
+
+  // ---------- the audio strip ----------
+  const sources = new Map<string, { label: string; spec: Spec; warn: string | null }>();
+  let specVersion = 0, musicKey = '';
+  const stemPath = opt('audio') ? path.resolve(opt('audio')!) : null;
+  if (stemPath && !existsSync(stemPath)) throw new Error(`--audio ${stemPath}: no such file`);
+  const analyse = (id: string, label: string, pcm: Float32Array, t0: number, warn: string | null) => {
+    const at = performance.now(), spec = spectrogram(pcm, { t0 });
+    sources.set(id, { label, spec, warn });
+    console.log(`audio:  ${label}, ${spec.meta.duration.toFixed(2)} s → ${spec.meta.cols} columns in ${((performance.now() - at) / 1000).toFixed(1)} s${warn ? `\n        warning: ${warn}` : ''}`);
+    specVersion++;
+  };
+  /** The main track (the video's, or the live engine's music) and the --audio stem checked against it. */
+  const analyseAll = (main: { file: string; label: string; t0: number } | null) => {
+    const d = readDoc(docPath);
+    const pcm = main ? decode(main.file) : null;
+    sources.clear();
+    if (pcm) analyse('main', main!.label, pcm, main!.t0, null);
+    else if (main) console.log(`audio:  ${main.label}: no audio stream`);
+    if (stemPath) {
+      const s = decode(stemPath);
+      if (!s) console.warn(`audio:  ${stemPath} has no audio`);
+      else {
+        const lc = lengthCheck(s.length, pcm?.length ?? Math.round(d.duration * SR), SR, d.fps, path.basename(stemPath),
+          !main ? 'the piece' : live ? "the engine's music" : "the video's audio");
+        if (lc && !lc.warn) console.log(`audio:  ${lc.text}`);
+        analyse('stem', path.basename(stemPath), s, main?.t0 ?? 0, lc?.warn ? lc.text : null);
+      }
+    }
+  };
+  const beatsPath = opt('beats') ? path.resolve(opt('beats')!)
+    : [live ? project : videoPath && projectOf(videoPath)].filter(Boolean).map((p) => path.join(p as string, 'public', 'audio.json')).find(existsSync) ?? null;
+  const lyricsPath = opt('lyrics') ? path.resolve(opt('lyrics')!) : null;
+  for (const [k, p] of [['--beats', beatsPath], ['--lyrics', lyricsPath]] as const) if (p && opt(k.slice(2)) && !existsSync(p)) throw new Error(`${k} ${p}: no such file`);
+  const scenesFile = opt('scenes') && /\.json$/i.test(opt('scenes')!) ? path.resolve(opt('scenes')!) : null;
+  const audioMarks = () => {
+    const d = readDoc(docPath), rd = (p: string | null) => (p && existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
+    const au = rd(beatsPath), ly = rd(lyricsPath), parts = rd(scenesFile)?.parts;
+    const zero = opt('zero') != null ? +opt('zero')! : num(au?.editZero) ?? num(parts?.[0]?.from) ?? 0;
+    return { ...marks(au, ly, zero, d.duration), beatsFile: beatsPath && path.basename(beatsPath), lyricsFile: lyricsPath && path.basename(lyricsPath) };
+  };
+  // live: once the engine reports its music and length (PUT /meta)
+  if (!live) analyseAll({ file: videoPath!, label: 'video audio', t0: audioLead(videoPath!) });
+
   const state = () => ({
     doc: readDoc(docPath), version: mtime(docPath), mediaVersion: mtime(videoPath), codeVersion,
+    audioVersion: specVersion + mtime(beatsPath) + mtime(lyricsPath),
     mode: live ? 'live' : 'video', name: live ? `${path.basename(path.resolve(opt('project', APP)!))} (live)` : path.basename(videoPath!),
     media: `/__markup/media?v=${Math.round(mtime(videoPath))}`, app: `/?export=1${opt('format') ? `&format=${opt('format')}` : ''}`,
     author: opt('author') ?? '',
   });
   const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
-  const files: Record<string, string> = { '/__markup/': 'index.html', '/__markup/app.js': 'app.js', '/__markup/draw.js': 'draw.js', '/__markup/style.css': 'style.css' };
+  const files: Record<string, string> = { '/__markup/': 'index.html', '/__markup/app.js': 'app.js', '/__markup/draw.js': 'draw.js', '/__markup/loop.js': 'loop.js', '/__markup/style.css': 'style.css' };
   const types: Record<string, string> = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8' };
 
   const server = Bun.serve({
@@ -263,7 +318,20 @@ async function serve() {
           scenes: (m.scenes ?? []).map((s: any) => ({ id: String(s.id), start: +s.start, end: +s.end })) });
         if (d.source.type === 'live') d.source.format = String(m.format ?? '');
         writeDoc(docPath, d);
+        // the engine's music is the strip's main track (re-analysed when the file or the project's choice changes)
+        const pub = path.join(project, 'public'), music = m.music ? path.resolve(pub, String(m.music).replace(/^\/+/, '')) : null;
+        const inPub = music && music.startsWith(pub + path.sep) && existsSync(music) ? music : null;
+        // (the stem is checked against the music, or the piece's length when there is none)
+        const key = `${inPub ? `${inPub}:${mtime(inPub)}` : ''}|${d.duration}`;
+        if (key !== musicKey) { musicKey = key; analyseAll(inPub ? { file: inPub, label: path.basename(inPub), t0: 0 } : null); }
         return json(state());
+      }
+      if (u.pathname === '/__markup/api/audio')
+        return json({ sources: [...sources].map(([id, s]) => ({ id, label: s.label, meta: s.spec.meta, warn: s.warn })), marks: audioMarks() });
+      const sp = /^\/__markup\/api\/spec\/(main|stem)$/.exec(u.pathname);
+      if (sp) {
+        const s = sources.get(sp[1]!);
+        return s ? new Response(s.spec.data, { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' } }) : new Response('no such source', { status: 404 });
       }
       if (u.pathname === '/__markup/api/tune' && live) {
         if (req.method === 'GET') return json(readTune(tunePath));

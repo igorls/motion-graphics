@@ -23,7 +23,8 @@ scripts/comfy.ts           ComfyUI batch runner: API workflow + overrides, one j
 scripts/voice.ts           voice-over: voices, design, audition, render takes (word timings, -16 LUFS), cues + SRT
 scripts/lyrics_align.py    sung lyrics -> public/lyrics.json: word timing from a local Whisper model (offline, provisional)
 scripts/parts.py           long pieces in parts: frame plan, exact audio crop + edit-time music map per part, join
-scripts/markup.ts          review page: notes on frames, regions, ranges; live block controls; export to stills + MARKUP.md
+scripts/markup.ts          review page: notes on frames, regions, ranges; an audio strip (spectrogram, beats, sung words);
+                           live block controls; export to stills + MARKUP.md (bun test scripts/markup)
 public/            media/, fonts/, audio/, audio.json, lyrics.json, tune.json (control overrides): everything scenes load by URL
 ```
 

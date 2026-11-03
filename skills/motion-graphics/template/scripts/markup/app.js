@@ -1,6 +1,7 @@
 // The markup page: play a render (or the live engine), scrub frame by frame, and pin notes to exact
 // frames, regions and ranges. Notes are saved one by one to the .markup.json next to the video by
 // scripts/markup.ts; the page polls it, so notes the agent resolves show up here.
+import { loopRange, startFrame, wrapTime, playAt } from './loop.js';
 const D = globalThis.MarkupDraw;
 const $ = (id) => document.getElementById(id);
 const API = '/__markup/api';
@@ -9,7 +10,7 @@ const S = {
   doc: null, mode: 'video', version: 0, mediaVersion: 0, codeVersion: 0,
   fps: 30, frames: 1, width: 1920, height: 1080,
   frame: 0, playing: false, tool: 'select', draft: null, editing: null, selected: null,
-  inF: null, outF: null, view: [0, 1], hoverF: null, showResolved: false,
+  inF: null, outF: null, loop: true, view: [0, 1], hoverF: null, showResolved: false,
 };
 let media = null;
 
@@ -25,6 +26,8 @@ function sceneAt(f) {
   const t = (f + 0.5) / S.fps;
   return (S.doc?.scenes ?? []).find((s) => t >= s.start && t < s.end) ?? null;
 }
+/** The in→out range playback loops over, or null (a mark missing, or looping off). */
+const curLoop = () => loopRange(S.inF, S.outF, S.loop);
 const sceneLabel = (f) => { const s = sceneAt(f); return s ? `${s.id} +${(tOf(f) - s.start).toFixed(2)}s` : ''; };
 
 // ---------- media adapters: a finished MP4, or the project's live engine ----------
@@ -32,20 +35,35 @@ function videoMedia(src) {
   const v = document.createElement('video');
   v.src = src; v.preload = 'auto'; v.playsInline = true; v.crossOrigin = 'anonymous';
   $('wrap').prepend(v);
+  // looping: at the end of the out frame, seek back to in (with the overshoot, so the sound stays on
+  // the picture). Checked on every presented frame and every tick, so it overshoots by under a tick.
+  const wrap = () => {
+    const lp = S.playing && curLoop();
+    if (!lp || v.seeking) return false;
+    const w = wrapTime(v.currentTime, lp, S.fps);
+    if (!w.wraps) return false;
+    v.currentTime = w.t + 1e-3; setFrame(w.frame, false);
+    return true;
+  };
   const onFrame = (_now, meta) => {
-    if (S.playing) setFrame(Math.round(meta.mediaTime * S.fps), false);
+    if (S.playing && !wrap()) { const lp = curLoop(), f = Math.round(meta.mediaTime * S.fps); setFrame(lp && f >= lp[0] ? Math.min(f, lp[1]) : f, false); }
     v.requestVideoFrameCallback(onFrame);
   };
   v.requestVideoFrameCallback?.(onFrame);
-  v.addEventListener('ended', () => { S.playing = false; syncPlayButton(); });
+  v.addEventListener('ended', () => {
+    const lp = S.playing && curLoop();
+    if (lp) { v.currentTime = tOf(lp[0]) + 1e-3; setFrame(lp[0], false); v.play(); return; }
+    S.playing = false; syncPlayButton();
+  });
   return {
     el: v,
     ready: new Promise((res, rej) => { v.addEventListener('loadedmetadata', res, { once: true }); v.addEventListener('error', () => rej(new Error('the video did not load')), { once: true }); }),
     // the middle of the frame's interval: robust against rounding in the decoder's timestamps
     seek(f) { v.currentTime = (f + 0.5) / S.fps; },
-    // on pause, land exactly on the last frame shown (its number came from requestVideoFrameCallback)
-    play() { v.play(); }, pause() { v.pause(); this.seek(S.frame); },
-    tick() {},
+    // play from the start of the frame, so its sound is heard from its first sample; on pause, land
+    // exactly on the last frame shown (its number came from requestVideoFrameCallback)
+    play() { v.currentTime = tOf(S.frame) + 1e-3; v.play(); }, pause() { v.pause(); this.seek(S.frame); },
+    tick() { wrap(); },
     rate(r) { v.playbackRate = r; },
     reload(src2) { const f = S.frame; v.src = src2; v.addEventListener('loadedmetadata', () => this.seek(f), { once: true }); },
   };
@@ -78,7 +96,7 @@ function liveMedia(src) {
     music = m.music ? Object.assign(new Audio('/' + m.music), { preload: 'auto' }) : null;
     voice = (m.voice ?? []).map((c) => ({ c, el: new Audio('/' + c.file) }));
     fr.width = m.width; fr.height = m.height;
-    api.info = { fps: m.fps, duration: m.duration, width: m.width, height: m.height, format: m.format, scenes: m.timeline, title: m.title };
+    api.info = { fps: m.fps, duration: m.duration, width: m.width, height: m.height, format: m.format, scenes: m.timeline, title: m.title, music: m.music };
   };
   const api = {
     el: fr, info: null,
@@ -92,10 +110,18 @@ function liveMedia(src) {
     pause() { music?.pause(); syncVoice(-1); },
     tick() {
       if (S.playing) {
-        const t = music && !music.paused ? music.currentTime : t0 + ((performance.now() - clock0) / 1000) * rate;
-        if (t >= tOf(S.frames - 1)) { togglePlay(false); setFrame(S.frames - 1, true); return; }
-        syncVoice(t);
-        setFrame(Math.floor(t * S.fps), false);
+        // the music is the clock while it plays; else wall time since the last (re)start, at the rate
+        const onMusic = music && !music.paused;
+        const p = playAt({ from: onMusic ? music.currentTime : t0, elapsed: onMusic ? 0 : (performance.now() - clock0) / 1000, rate, fps: S.fps, frames: S.frames, loop: curLoop() });
+        if (p.ended) { togglePlay(false); setFrame(S.frames - 1, true); return; }
+        if (p.wraps) {
+          // back to in: re-seek the music and restart the voice clips there, and restart the wall clock
+          t0 = p.t; clock0 = performance.now();
+          if (music) { music.currentTime = p.t; if (music.paused) music.play(); }
+          for (const { el } of voice) el.pause();
+        }
+        syncVoice(p.t);
+        setFrame(p.frame, false);
       }
       draw(S.frame);
     },
@@ -123,7 +149,7 @@ function layout() {
   Object.assign($('wrap').style, { width: `${w}px`, height: `${h}px`, left: `${(st.width - w) / 2}px`, top: `${(st.height - h) / 2}px` });
   if (S.mode === 'live' && media) media.el.style.transform = `scale(${w / S.width})`;
   const dpr = devicePixelRatio || 1;
-  for (const [c, cw, ch] of [[$('ov'), w, h], [$('tl'), $('tl').clientWidth, $('tl').clientHeight]]) {
+  for (const [c, cw, ch] of [[$('ov'), w, h], [$('tl'), $('tl').clientWidth, $('tl').clientHeight], [$('spec'), $('spec').clientWidth, $('spec').clientHeight]]) {
     c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr);
   }
 }
@@ -141,7 +167,7 @@ function togglePlay(on = !S.playing) {
   if (on === S.playing) return;
   if (on && S.draft) return;
   S.playing = on;
-  if (on) { if (S.frame >= S.frames - 1) setFrame(0); media.play(); } else media.pause();
+  if (on) { const f = startFrame(S.frame, curLoop(), S.frames); if (f !== S.frame) setFrame(f); media.play(); } else media.pause();
   syncPlayButton();
 }
 const syncPlayButton = () => { $('bPlay').textContent = S.playing ? '❚❚' : '▶︎'; };
@@ -158,10 +184,16 @@ function sceneJump(dir) {
   setFrame(f);
 }
 function marksText() {
-  const a = S.inF, b = S.outF;
-  $('marks').textContent = a == null && b == null ? '' : `in ${a ?? '–'} · out ${b ?? '–'}${a != null && b != null ? ` · ${((b - a) / S.fps).toFixed(2)} s` : ''}`;
-  $('bRangeNote').disabled = a == null || b == null;
+  const a = S.inF, b = S.outF, both = a != null && b != null;
+  $('marks').textContent = a == null && b == null ? '' : `in ${a ?? '–'} · out ${b ?? '–'}${both ? ` · ${((b - a) / S.fps).toFixed(2)} s` : ''} ✕`;
+  $('marks').hidden = a == null && b == null;
+  $('bRangeNote').disabled = !both;
+  $('bLoop').classList.toggle('on', S.loop);
+  $('bLoop').classList.toggle('armed', S.loop && both);
 }
+/** Set in→out (a note's range, a word's span); Play then loops it. */
+function setRange(a, b) { S.inF = a; S.outF = b; marksText(); }
+function clearRange() { S.inF = S.outF = null; marksText(); }
 
 // ---------- the doc and saving ----------
 let saveTimer = 0;
@@ -191,6 +223,7 @@ async function poll() {
       b.querySelector('button').onclick = () => { S.mediaVersion = r.mediaVersion; media.reload(r.media); b.hidden = true; };
     }
     if (r.codeVersion !== S.codeVersion && S.mode === 'live') { S.codeVersion = r.codeVersion; media.reload(); }
+    if (r.audioVersion !== SP.version) { SP.version = r.audioVersion; await loadAudio(); }
   } catch { saved('server unreachable', true); }
   setTimeout(poll, 2000);
 }
@@ -383,6 +416,12 @@ async function pickOption(n, key) {
 }
 
 // ---------- the notes list ----------
+/** Go to a note; a range note's range becomes in→out, so Play loops it. */
+function selectNote(n) {
+  S.selected = n.id; togglePlay(false);
+  if (n.range) setRange(n.range.inFrame, n.range.outFrame);
+  setFrame(n.range?.inFrame ?? n.frame); renderList();
+}
 function renderList() {
   const ol = $('notes'); ol.textContent = '';
   const all = [...S.doc.notes].sort((a, b) => (a.range?.inFrame ?? a.frame) - (b.range?.inFrame ?? b.frame) || +a.id.slice(1) - +b.id.slice(1));
@@ -419,7 +458,7 @@ function renderList() {
       if (b?.classList.contains('un')) { undoChange(n); return; }
       if (b?.classList.contains('ed')) { editNote(n); return; }
       if (b?.classList.contains('del')) { if (confirm(`Delete note ${n.id}?`)) api('DELETE', `/notes/${n.id}`).then(accept); return; }
-      S.selected = n.id; togglePlay(false); setFrame(n.range?.inFrame ?? n.frame); renderList();
+      selectNote(n);
     };
     ol.append(li);
   }
@@ -480,13 +519,18 @@ function drawTimeline() {
     x.restore();
   });
   if (!sc.length) { x.fillStyle = '#555'; x.fillText('no scene track (pass --scenes)', 6, sy + TL.scenes / 2); }
-  // in/out
+  // in/out; while Play loops it, a bar along the top and its length
   if (S.inF != null || S.outF != null) {
-    const a = tlX(S.inF ?? S.outF, w), b = tlX((S.outF ?? S.inF) + 1, w);
-    x.fillStyle = 'rgba(76,200,255,0.14)'; x.fillRect(Math.min(a, b), TL.ruler, Math.abs(b - a), h - TL.ruler);
+    const a = tlX(S.inF ?? S.outF, w), b = tlX((S.outF ?? S.inF) + 1, w), lp = curLoop();
+    x.fillStyle = lp ? 'rgba(76,200,255,0.2)' : 'rgba(76,200,255,0.12)'; x.fillRect(Math.min(a, b), TL.ruler, Math.abs(b - a), h - TL.ruler);
     x.fillStyle = '#4cc8ff';
     if (S.inF != null) x.fillRect(tlX(S.inF, w), TL.ruler, 2, h - TL.ruler);
     if (S.outF != null) x.fillRect(tlX(S.outF + 1, w) - 2, TL.ruler, 2, h - TL.ruler);
+    if (lp) {
+      const la = tlX(lp[0], w), lb = tlX(lp[1] + 1, w), lab = `⟲ ${lp[1] + 1 - lp[0]} f`;
+      x.fillRect(la, TL.ruler, lb - la, 3);
+      x.fillText(lab, Math.max(la, 0) + 4, TL.ruler + TL.scenes - 6);
+    }
   }
   // notes
   const ny = TL.ruler + TL.scenes + 4;
@@ -514,16 +558,218 @@ function drawTimeline() {
   x.beginPath(); x.moveTo(px - 5, 8); x.lineTo(px + 7, 8); x.lineTo(px + 1, 15); x.fill();
 }
 
+// ---------- the audio strip: spectrogram, beats and sung words, locked to the playhead ----------
+// The server computes the spectrogram once (scripts/markup/spec.ts): bytes, column-major, ROWS log bands
+// from fmin (row 0) to fmax; column c is centred on t0 + c * hop / sr. Words and beats are times in s.
+const SP = { version: null, sources: [], marks: null, src: 'main', data: new Map(), win: 4, drag: null, hover: null, hits: [], img: null, key: '' };
+const STRIP = { words: 18, notes: 8 };
+// magma-like, dark to light: quiet is near black, the loudest partials near white
+const LUT = (() => {
+  const stops = ['000004', '1c1044', '4f127b', '812581', 'b5367a', 'e55964', 'fb8761', 'fec287', 'fcfdbf'].map((h) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  return Array.from({ length: 256 }, (_, v) => {
+    const x = (v / 255) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+    return stops[i].map((c, k) => Math.round(c + (stops[i + 1][k] - c) * f));
+  });
+})();
+async function loadAudio() {
+  const r = await api('GET', '/audio');
+  SP.sources = r.sources; SP.marks = r.marks; SP.data.clear(); SP.key = '';
+  if (!SP.sources.some((s) => s.id === SP.src)) SP.src = SP.sources[0]?.id ?? 'main';
+  const sel = $('sSrc'); sel.textContent = '';
+  for (const s of SP.sources) sel.append(Object.assign(document.createElement('option'), { value: s.id, textContent: s.id === 'main' ? s.label : `${s.label} (--audio)`, selected: s.id === SP.src }));
+  sel.disabled = SP.sources.length < 2;
+  const m = SP.marks, warn = [...SP.sources.map((s) => s.warn).filter(Boolean), ...m.warnings];
+  $('sWarn').textContent = warn.length ? `⚠ ${warn[0]}${warn.length > 1 ? ` (+${warn.length - 1})` : ''}` : '';
+  $('sWarn').title = warn.join('\n');
+  $('sBeats').disabled = !m.beats.length; $('sWords').disabled = !m.words.length;
+  $('sInfo').textContent = `${SP.sources.length ? '80 Hz–8 kHz, log' : 'no audio track'}${m.beatsFile ? ` · ${m.beats.length} beats (${m.beatsFile})` : ''}${m.lyricsFile ? ` · ${m.words.length} words (${m.lyricsFile}${m.zero ? `, zero ${m.zero} s` : ''})` : ''}`;
+  await specData();
+}
+async function specData() {
+  if (SP.data.has(SP.src) || !SP.sources.some((s) => s.id === SP.src)) return;
+  const r = await fetch(`${API}/spec/${SP.src}`);
+  if (r.ok) { SP.data.set(SP.src, new Uint8Array(await r.arrayBuffer())); SP.key = ''; }
+}
+/** The strip's time window [a, b] in seconds: SP.win around the playhead, or the whole piece. */
+function stripView() {
+  const dur = S.frames / S.fps, w = SP.win && SP.win < dur ? SP.win : dur;
+  const a = Math.max(0, Math.min(dur - w, (S.frame + 0.5) / S.fps - w / 2));
+  return [a, a + w];
+}
+/** Frames a sung span [t0, t1) is heard in: the first whose interval holds t0 to the last that starts before t1. */
+const spanFrames = (t0, t1) => { const a = clampF(Math.floor(t0 * S.fps + 1e-6)); return [a, clampF(Math.max(a, Math.ceil(t1 * S.fps - 1e-6) - 1))]; };
+function drawStrip() {
+  const c = $('spec'); if (!c.width || $('strip').hidden) return;
+  const x = c.getContext('2d'), dpr = devicePixelRatio || 1, w = c.width / dpr, h = c.height / dpr;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
+  const [a, b] = stripView(), X = (t) => ((t - a) / (b - a)) * w, y0 = STRIP.words, y1 = h - STRIP.notes, sh = y1 - y0;
+  x.font = '11px ui-monospace, monospace'; x.textBaseline = 'middle';
+  const src = SP.sources.find((s) => s.id === SP.src), data = SP.data.get(SP.src);
+  if (src && data) {
+    const m = src.meta, px = Math.max(1, Math.round(w * dpr)), key = `${SP.src}|${a}|${b}|${px}`;
+    if (key !== SP.key) {
+      // one image column per device pixel: the loudest analysis column under it (none skipped when zoomed out)
+      const img = new ImageData(px, m.rows), cps = m.sr / m.hop;
+      for (let i = 0; i < px; i++) {
+        const ca = (a + ((b - a) * i) / px - m.t0) * cps, cb = (a + ((b - a) * (i + 1)) / px - m.t0) * cps;
+        let lo = Math.round((ca + cb) / 2), hi = lo + 1;
+        if (cb - ca >= 1) { lo = Math.floor(ca); hi = Math.ceil(cb); }
+        lo = Math.max(0, lo); hi = Math.min(m.cols, hi);
+        for (let r = 0; r < m.rows; r++) {
+          let v = 0;
+          for (let k = lo; k < hi; k++) v = Math.max(v, data[k * m.rows + r]);
+          const o = ((m.rows - 1 - r) * px + i) * 4, col = LUT[v];
+          img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
+        }
+      }
+      SP.img ??= document.createElement('canvas');
+      SP.img.width = px; SP.img.height = m.rows;
+      SP.img.getContext('2d').putImageData(img, 0, 0);
+      SP.key = key;
+    }
+    x.imageSmoothingEnabled = true;
+    x.drawImage(SP.img, 0, y0, w, sh);
+    // frequency ticks
+    x.fillStyle = 'rgba(255,255,255,0.55)';
+    for (const f of [100, 200, 500, 1000, 2000, 4000]) {
+      const y = y1 - (Math.log(f / m.fmin) / Math.log(m.fmax / m.fmin)) * sh;
+      x.fillRect(0, y, 5, 1); x.fillText(f >= 1000 ? `${f / 1000}k` : String(f), 7, y);
+    }
+  } else { x.fillStyle = '#555'; x.fillText(SP.sources.length ? 'loading the spectrogram…' : 'no audio to show (the video has no audio track; --audio adds one)', 8, y0 + sh / 2); }
+  const m = SP.marks;
+  // beats (amber, so they read over the music's own hits): a faint line and a tick at the foot;
+  // downbeats a full line with their bar number
+  if (m && $('sBeats').checked) {
+    for (const t of m.beats) if (t >= a && t <= b) {
+      x.fillStyle = 'rgba(255,178,30,0.28)'; x.fillRect(X(t), y0, 1, sh);
+      x.fillStyle = 'rgba(255,178,30,0.95)'; x.fillRect(X(t) - 1, y1 - 6, 3, 6);
+    }
+    const roomy = m.downbeats.length > 1 && ((m.downbeats[1] - m.downbeats[0]) / (b - a)) * w > 24;
+    m.downbeats.forEach((t, i) => {
+      if (t < a || t > b) return;
+      x.fillStyle = 'rgba(255,178,30,0.75)'; x.fillRect(X(t), y0, 1, sh);
+      if (!roomy) return;
+      const lab = `bar ${i + 1}`, tw = x.measureText(lab).width;
+      x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(X(t) + 2, y1 - 20, tw + 6, 13);
+      x.fillStyle = '#ffd27a'; x.fillText(lab, X(t) + 5, y1 - 13);
+    });
+  }
+  // words: onset line through the spectrogram, the word and its sung span in the band above
+  SP.hits = [];
+  if (m && $('sWords').checked) {
+    let free = -Infinity;
+    for (const wd of m.words) {
+      const end = wd.end ?? wd.start;
+      if (end < a || wd.start > b) continue;
+      const xa = X(wd.start), xb = Math.max(xa + 2, X(end));
+      x.fillStyle = 'rgba(76,200,255,0.9)'; x.fillRect(xa, y0, 1, sh);
+      x.fillStyle = 'rgba(76,200,255,0.35)'; x.fillRect(xa, y0 - 4, xb - xa, 3);
+      const tw = x.measureText(wd.text).width;
+      if (xa >= free) { x.fillStyle = '#bfefff'; x.fillText(wd.text, xa + 2, 7); free = xa + tw + 8; }
+      SP.hits.push({ wd, a: xa - 2, b: Math.max(xb, xa + tw + 4) });
+    }
+  }
+  // in/out, a drag in progress, notes along the bottom
+  const F = (f) => X(f / S.fps);
+  if (S.inF != null || S.outF != null) {
+    const ia = F(S.inF ?? S.outF), ib = F((S.outF ?? S.inF) + 1), lo = Math.min(ia, ib), hi = Math.max(ia, ib);
+    x.fillStyle = 'rgba(76,200,255,0.16)'; x.fillRect(lo, y0, hi - lo, sh);
+    // the loop's edges: what Play repeats
+    if (curLoop()) { x.fillStyle = '#4cc8ff'; x.fillRect(lo, y0, 2, sh); x.fillRect(hi - 2, y0, 2, sh); x.fillRect(lo, y0, hi - lo, 2); }
+  }
+  if (SP.drag?.moved) {
+    const [fa, fb] = spanFrames(Math.min(SP.drag.t0, SP.drag.t1), Math.max(SP.drag.t0, SP.drag.t1));
+    x.fillStyle = 'rgba(76,200,255,0.3)'; x.fillRect(F(fa), y0, F(fb + 1) - F(fa), sh);
+  }
+  for (const n of S.doc.notes) {
+    if (n.status === 'resolved' && !S.showResolved) continue;
+    x.fillStyle = n.id === S.selected ? D.COLOR.active : n.status === 'resolved' ? D.COLOR.resolved : D.COLOR.open;
+    const na = F(n.range?.inFrame ?? n.frame), nb = Math.max(na + 2, F((n.range?.outFrame ?? n.frame) + 1));
+    if (nb >= 0 && na <= w) x.fillRect(na, y1 + 2, nb - na, STRIP.notes - 3);
+  }
+  // hover and playhead: the current frame's interval, its start as the line
+  if (SP.hover != null) { x.fillStyle = 'rgba(255,255,255,0.35)'; x.fillRect(X(SP.hover), y0, 1, sh); }
+  const pa = F(S.frame);
+  x.fillStyle = 'rgba(255,255,255,0.16)'; x.fillRect(pa, 0, Math.max(1, F(S.frame + 1) - pa), h);
+  x.fillStyle = '#fff'; x.fillRect(pa, 0, 1.5, h);
+  // the window's span, top right over the word band
+  const span = `${fmt(a)} – ${fmt(b)}`, sw = x.measureText(span).width;
+  x.fillStyle = 'rgba(13,13,13,0.85)'; x.fillRect(w - sw - 10, 0, sw + 10, STRIP.words - 4);
+  x.fillStyle = 'rgba(255,255,255,0.5)'; x.fillText(span, w - sw - 5, 7);
+}
+/** Next or previous word onset (or beat) from the playhead, landing on the frame it is heard in. */
+function markJump(kind, dir) {
+  const m = SP.marks; if (!m) return;
+  const ts = kind === 'word' && m.words.length ? m.words.map((w) => w.start) : m.beats;
+  const fs = [...new Set(ts.map((t) => spanFrames(t, t)[0]))].sort((p, q) => p - q);
+  const f = dir > 0 ? fs.find((k) => k > S.frame) : [...fs].reverse().find((k) => k < S.frame);
+  if (f != null) { togglePlay(false); setFrame(f); }
+}
+function bindStrip() {
+  const c = $('spec');
+  const tAt = (e) => { const r = c.getBoundingClientRect(), [a, b] = stripView(); return a + ((e.clientX - r.left) / r.width) * (b - a); };
+  c.addEventListener('pointerdown', (e) => {
+    const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    togglePlay(false);
+    // a word in the band above: its sung span becomes in→out (R makes the note)
+    const hit = py < STRIP.words && SP.hits.find((hh) => px >= hh.a && px <= hh.b);
+    if (hit) { setRange(...spanFrames(hit.wd.start, hit.wd.end ?? hit.wd.start)); setFrame(S.inF); return; }
+    c.setPointerCapture(e.pointerId);
+    SP.drag = { x: e.clientX, t0: tAt(e), t1: tAt(e), moved: false };
+  });
+  c.addEventListener('pointermove', (e) => {
+    SP.hover = tAt(e);
+    if (!SP.drag) return;
+    SP.drag.t1 = SP.hover;
+    if (Math.abs(e.clientX - SP.drag.x) > 4) SP.drag.moved = true;
+  });
+  c.addEventListener('pointerup', () => {
+    const d = SP.drag; SP.drag = null;
+    if (!d) return;
+    // a click seeks; a drag marks the frames the dragged sound is heard in and opens a range note on them
+    if (!d.moved) { setFrame(Math.floor(d.t0 * S.fps + 1e-6)); return; }
+    setRange(...spanFrames(Math.min(d.t0, d.t1), Math.max(d.t0, d.t1)));
+    rangeNote();
+  });
+  c.addEventListener('pointerleave', () => { SP.hover = null; });
+  c.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      const dur = S.frames / S.fps, cur = SP.win || dur;
+      const nw = Math.max(1, Math.min(dur, cur * Math.exp(e.deltaY * 0.002)));
+      SP.win = nw >= dur ? 0 : nw;
+      $('sZoom').value = [...$('sZoom').options].find((o) => Math.abs(+o.value - SP.win) < 0.01)?.value ?? '';
+      return;
+    }
+    const n = wheelFrames(e);
+    if (n) { togglePlay(false); setFrame(S.frame + n * (e.shiftKey ? S.fps : 1)); }
+  }, { passive: false });
+  $('sSrc').onchange = () => { SP.src = $('sSrc').value; SP.key = ''; specData(); };
+  $('sZoom').onchange = () => { SP.win = +$('sZoom').value; };
+  const show = (on) => { $('strip').hidden = !on; $('bStrip').classList.toggle('on', on); layout(); try { localStorage.setItem('markup.strip', on ? '1' : '0'); } catch {} };
+  $('bStrip').onclick = () => show($('strip').hidden);
+  let on = true; try { on = localStorage.getItem('markup.strip') !== '0'; } catch {}
+  show(on);
+  return show;
+}
+// a mouse notch is one event of ~100 px; a trackpad sends many small ones, summed to 30 px a frame
+let wheelAcc = 0;
+function wheelFrames(e) {
+  if (e.deltaMode !== 0 || Math.abs(e.deltaY) >= 50) return Math.sign(e.deltaY);
+  wheelAcc += e.deltaY; const n = Math.trunc(wheelAcc / 30); wheelAcc -= n * 30;
+  return n;
+}
+
 // ---------- input ----------
 function bindTimeline() {
   const c = $('tl');
   const fAt = (e) => { const r = c.getBoundingClientRect(); return tlF(e.clientX - r.left, r.width); };
-  let drag = false, acc = 0;
+  let drag = false;
   c.addEventListener('pointerdown', (e) => {
     const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     if (py > TL.ruler + TL.scenes) {
       const hit = (S.hits ?? []).find((h) => px >= h.a && px <= h.b);
-      if (hit) { const n = S.doc.notes.find((m) => m.id === hit.id); S.selected = n.id; togglePlay(false); setFrame(n.range?.inFrame ?? n.frame); renderList(); return; }
+      if (hit) { selectNote(S.doc.notes.find((m) => m.id === hit.id)); return; }
     }
     drag = true; c.setPointerCapture(e.pointerId); togglePlay(false); setFrame(Math.floor(fAt(e)));
   });
@@ -543,10 +789,7 @@ function bindTimeline() {
       S.view = [a, a + span]; return;
     }
     // plain wheel: step frames (a notch is one frame; Shift: one second)
-    // (a mouse notch is one event of ~100 px; a trackpad sends many small ones, summed to 30 px a frame)
-    let n;
-    if (e.deltaMode !== 0 || Math.abs(e.deltaY) >= 50) n = Math.sign(e.deltaY);
-    else { acc += e.deltaY; n = Math.trunc(acc / 30); acc -= n * 30; }
+    const n = wheelFrames(e);
     if (!n) return;
     togglePlay(false); setFrame(S.frame + n * (e.shiftKey ? S.fps : 1));
   }, { passive: false });
@@ -614,12 +857,15 @@ function bindKeys() {
       o: () => { S.outF = S.frame; if (S.inF != null && S.inF > S.outF) S.inF = null; marksText(); },
       v: () => setTool('select'), p: () => setTool('pin'), b: () => setTool('box'), d: () => setTool('draw'),
       n: () => openComposer({ frame: S.frame, shape: null }), r: () => rangeNote(),
-      Escape: () => { if (S.draft) closeComposer(); else if (S.inF != null || S.outF != null) { S.inF = S.outF = null; marksText(); } else S.selected = null; renderList(); },
+      '.': () => markJump('word', 1), ',': () => markJump('word', -1), '>': () => markJump('beat', 1), '<': () => markJump('beat', -1),
+      a: () => $('bStrip').click(), l: () => toggleLoop(),
+      Escape: () => { if (S.draft) closeComposer(); else if (S.inF != null || S.outF != null) clearRange(); else S.selected = null; renderList(); },
       Delete: () => { const n = S.doc.notes.find((m) => m.id === S.selected); if (n && confirm(`Delete note ${n.id}?`)) api('DELETE', `/notes/${n.id}`).then(accept); },
     }[k.length === 1 ? k.toLowerCase() : k];
     if (act && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); act(); }
   });
 }
+function toggleLoop() { S.loop = !S.loop; marksText(); }
 function rangeNote() {
   if (S.inF == null || S.outF == null) { toast('mark in (I) and out (O) first', true); return; }
   const a = Math.min(S.inF, S.outF), b = Math.max(S.inF, S.outF);
@@ -633,6 +879,7 @@ function bindButtons() {
   $('bNext').onclick = (e) => { togglePlay(false); setFrame(S.frame + (e.shiftKey ? S.fps : 1)); };
   $('bScenePrev').onclick = () => sceneJump(-1); $('bSceneNext').onclick = () => sceneJump(1);
   $('bIn').onclick = () => { S.inF = S.frame; marksText(); }; $('bOut').onclick = () => { S.outF = S.frame; marksText(); };
+  $('bLoop').onclick = toggleLoop; $('marks').onclick = clearRange;
   $('bFit').onclick = () => { S.view = [0, S.frames]; };
   $('rate').onchange = () => media.rate(+$('rate').value);
   for (const b of document.querySelectorAll('[data-tool]')) b.onclick = () => setTool(b.dataset.tool);
@@ -649,7 +896,7 @@ function bindButtons() {
 
 function loop() {
   media.tick();
-  drawOverlay(); drawTimeline();
+  drawOverlay(); drawTimeline(); drawStrip();
   $('clock').textContent = fmt(tOf(S.frame));
   $('frameNo').textContent = `f ${S.frame} / ${S.frames - 1}`;
   const sc = sceneAt(S.frame);
@@ -687,7 +934,9 @@ async function main() {
   if (S.mode === 'live') { accept(await api('PUT', '/meta', media.info)); refreshBlocks(); }
   applyMeta();
   const d = S.doc;
-  bindTimeline(); bindOverlay(); bindKeys(); setTool('select'); marksText();
+  bindTimeline(); bindStrip(); bindOverlay(); bindKeys(); setTool('select'); marksText();
+  SP.version = r.audioVersion;
+  loadAudio().catch((e) => toast('audio strip: ' + e.message, true));
   addEventListener('resize', layout); new ResizeObserver(layout).observe($('stage'));
   layout();
   const f0 = +(new URLSearchParams(location.search).get('f') ?? 0);

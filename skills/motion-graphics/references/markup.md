@@ -21,11 +21,37 @@ It prints `http://127.0.0.1:8790/`. Send that to the user with one line on how t
 
 > Open http://127.0.0.1:8790/ and play or scrub to a moment (←/→ steps one frame, the wheel over the timeline does too). Press P for a pin, B to box a region, D to draw, or I and O to mark a range and then R. Write what should change and press Enter; every note saves right away. Tell me when you're done.
 
-The video plays with its audio. The timeline shows the scene blocks, the notes and the in/out marks; Ctrl+wheel zooms it. Notes save one at a time to `<video>.markup.json` next to the video. The page polls that file, so notes you resolve show up there (green, with your resolution line) and a re-rendered video offers a reload.
+The video plays with its audio. The timeline shows the scene blocks, the notes and the in/out marks; Ctrl+wheel zooms it. With in and out set, Play loops the range ([below](#the-audio-strip-where-the-sound-is)). Notes save one at a time to `<video>.markup.json` next to the video. The page polls that file, so notes you resolve show up there (green, with your resolution line) and a re-rendered video offers a reload.
 
 `--port` picks another port (each serve needs its own); `--author` pre-fills the name; `--fps` overrides the probed rate.
 
+**Audio strip:** under the timeline, a spectrogram of the video's audio shows where syllables, beats and hits land, with the beat grid and the sung words on it. See [below](#the-audio-strip-where-the-sound-is).
+
 **Scene track (`--scenes`):** an ffmpeg concat list (`file '...'` lines; each file's frame count makes one block, named after its part folder when the path is `<part>/out/<file>.mp4`), a parts manifest (`{"parts": [{"name", "from", "to"}]}`, times relative to the first part's start), or JSON `[{"id", "start", "end"}]`. A video under a project's `out/` gets that project's timeline without the flag. The track is stored in the notes file, so later serves and exports reuse it.
+
+## The audio strip: where the sound is
+
+Stills can't show sync. The strip under the timeline is a spectrogram of the render's own audio, locked to the playhead, so the user (and you, from a screenshot) can see exactly where a syllable, a beat or a hit lands, and pin a note to it. It is the tool for lip sync (does the mouth open on the word's onset?), a hit on a kick, a cut on a downbeat.
+
+```bash
+bun scripts/markup.ts serve --video out/vertical.mp4 --lyrics public/lyrics.json      # beats from public/audio.json, plus the sung words
+bun scripts/markup.ts serve --video film.mp4 --scenes ../parts.json --lyrics ../lyrics.json --beats ../song.audio.json --audio ../stems/vocals.wav
+```
+
+- **What it shows:** 80 Hz to 8 kHz on a log axis (the voice range; ticks at 100, 200, 500, 1k, 2k, 4k), from black (quiet, 80 dB down) to near white (the loudest partials). The server computes it once at start from the decoded track: 46 ms Hann window, a column every 5.8 ms, the same bytes for the same audio. Zoom with the select (whole, 30, 10, 4, 2 s) or Ctrl+wheel on the strip. In a window the sound scrolls under a fixed playhead. The white line is the start of the current frame and the light band its 1/fps interval, so stepping one frame moves the sound by exactly one frame. A sound's edge reads up to half a window (23 ms, under a frame at 30 fps) early in the dark; it reaches full brightness at its onset.
+- **Beats** (amber; downbeats full height with their bar number) come from `audio.json`: the project's `public/audio.json`, or `--beats <file>`. Its times are read as the video's clock, so give it the map of the same audio (a part's edit-time map for a part's render, the song's for the joined film).
+- **Words** (cyan: an onset line through the spectrogram, the word, and its sung span above it) come from `--lyrics <lyrics.json>` (the `lines[].words[]` shape `lyrics_align.py` writes, times in song seconds). `--zero <s>` is the song time of the video's first frame. It defaults to `audio.json`'s `editZero`, else a parts manifest's first `from`, else 0. Words are drawn where the file puts them, never snapped to a beat. A word with no start is left out, and the strip says how many. `lyrics.json` timing is provisional: a cyan line off its syllable is a finding about the alignment, not the render. Say so, and fix the alignment (aliases, crops) before you move any animation to it.
+- **Source:** the video's own audio track by default. `--audio <wav>` adds a second source to toggle to, such as a separated vocal stem, where syllables stand out far more clearly than under the mix. It must be sample-aligned with the video (the same crop of the same master), because it is drawn from the first frame. If its length differs by more than an AAC track's end padding (25 ms), the server log and the page warn with the difference in ms and frames.
+- **Pointing at a sound:**
+  - Click the strip to seek.
+  - Drag across a sound to open a range note on exactly the frames it is heard in: from the frame whose interval holds its start to the last frame that starts before its end.
+  - Click a word above the spectrogram to set in→out to its sung span, then press R.
+  - `.` / `,` jump to the next / previous word onset (beats when there are no words), and `>` / `<` to the next / previous beat, each landing on the frame the onset is heard in.
+  - A hides or shows the strip.
+- **Looping a range:** with in and out set, Play loops from the start of the in frame to the end of the out frame. It starts at in, or carries on when the playhead is already inside the range. The audio is re-seeked on every wrap, so the sound stays on the picture and the clock never runs past out by more than one display tick. Selecting a range note or clicking a word sets the range, so with the 0.25× or 0.5× rate you can watch a mouth against one syllable over and over. L (or the Loop button) turns looping off and on; Esc or the in/out chip clears the range. The range is drawn on the timeline, with its length in frames, and on the strip.
+- **Live mode:** the strip shows the engine's music (`project.music`) and is recomputed when the file changes.
+
+Reading lip sync on it: the engine draws frame k at time k / fps. A word whose onset falls inside frame k is heard during frame k, but anything keyed to `t >= onset` first shows on frame k + 1, up to a frame after the sound. Step from the frame `.` lands on to the next one. A mouth that is still closed when the syllable is bright reads as late; animators usually lead the sound by a frame rather than trail it.
 
 ## Read the notes, then fix
 
