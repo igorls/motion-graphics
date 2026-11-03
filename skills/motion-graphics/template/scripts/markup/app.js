@@ -78,7 +78,7 @@ function liveMedia(src) {
     music = m.music ? Object.assign(new Audio('/' + m.music), { preload: 'auto' }) : null;
     voice = (m.voice ?? []).map((c) => ({ c, el: new Audio('/' + c.file) }));
     fr.width = m.width; fr.height = m.height;
-    api.info = { fps: m.fps, duration: m.duration, width: m.width, height: m.height, format: m.format, scenes: m.timeline, title: m.title };
+    api.info = { fps: m.fps, duration: m.duration, width: m.width, height: m.height, format: m.format, scenes: m.timeline, title: m.title, music: m.music };
   };
   const api = {
     el: fr, info: null,
@@ -123,7 +123,7 @@ function layout() {
   Object.assign($('wrap').style, { width: `${w}px`, height: `${h}px`, left: `${(st.width - w) / 2}px`, top: `${(st.height - h) / 2}px` });
   if (S.mode === 'live' && media) media.el.style.transform = `scale(${w / S.width})`;
   const dpr = devicePixelRatio || 1;
-  for (const [c, cw, ch] of [[$('ov'), w, h], [$('tl'), $('tl').clientWidth, $('tl').clientHeight]]) {
+  for (const [c, cw, ch] of [[$('ov'), w, h], [$('tl'), $('tl').clientWidth, $('tl').clientHeight], [$('spec'), $('spec').clientWidth, $('spec').clientHeight]]) {
     c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr);
   }
 }
@@ -191,6 +191,7 @@ async function poll() {
       b.querySelector('button').onclick = () => { S.mediaVersion = r.mediaVersion; media.reload(r.media); b.hidden = true; };
     }
     if (r.codeVersion !== S.codeVersion && S.mode === 'live') { S.codeVersion = r.codeVersion; media.reload(); }
+    if (r.audioVersion !== SP.version) { SP.version = r.audioVersion; await loadAudio(); }
   } catch { saved('server unreachable', true); }
   setTimeout(poll, 2000);
 }
@@ -514,11 +515,211 @@ function drawTimeline() {
   x.beginPath(); x.moveTo(px - 5, 8); x.lineTo(px + 7, 8); x.lineTo(px + 1, 15); x.fill();
 }
 
+// ---------- the audio strip: spectrogram, beats and sung words, locked to the playhead ----------
+// The server computes the spectrogram once (scripts/markup/spec.ts): bytes, column-major, ROWS log bands
+// from fmin (row 0) to fmax; column c is centred on t0 + c * hop / sr. Words and beats are times in s.
+const SP = { version: null, sources: [], marks: null, src: 'main', data: new Map(), win: 4, drag: null, hover: null, hits: [], img: null, key: '' };
+const STRIP = { words: 18, notes: 8 };
+// magma-like, dark to light: quiet is near black, the loudest partials near white
+const LUT = (() => {
+  const stops = ['000004', '1c1044', '4f127b', '812581', 'b5367a', 'e55964', 'fb8761', 'fec287', 'fcfdbf'].map((h) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  return Array.from({ length: 256 }, (_, v) => {
+    const x = (v / 255) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+    return stops[i].map((c, k) => Math.round(c + (stops[i + 1][k] - c) * f));
+  });
+})();
+async function loadAudio() {
+  const r = await api('GET', '/audio');
+  SP.sources = r.sources; SP.marks = r.marks; SP.data.clear(); SP.key = '';
+  if (!SP.sources.some((s) => s.id === SP.src)) SP.src = SP.sources[0]?.id ?? 'main';
+  const sel = $('sSrc'); sel.textContent = '';
+  for (const s of SP.sources) sel.append(Object.assign(document.createElement('option'), { value: s.id, textContent: s.id === 'main' ? s.label : `${s.label} (--audio)`, selected: s.id === SP.src }));
+  sel.disabled = SP.sources.length < 2;
+  const m = SP.marks, warn = [...SP.sources.map((s) => s.warn).filter(Boolean), ...m.warnings];
+  $('sWarn').textContent = warn.length ? `⚠ ${warn[0]}${warn.length > 1 ? ` (+${warn.length - 1})` : ''}` : '';
+  $('sWarn').title = warn.join('\n');
+  $('sBeats').disabled = !m.beats.length; $('sWords').disabled = !m.words.length;
+  $('sInfo').textContent = `${SP.sources.length ? '80 Hz–8 kHz, log' : 'no audio track'}${m.beatsFile ? ` · ${m.beats.length} beats (${m.beatsFile})` : ''}${m.lyricsFile ? ` · ${m.words.length} words (${m.lyricsFile}${m.zero ? `, zero ${m.zero} s` : ''})` : ''}`;
+  await specData();
+}
+async function specData() {
+  if (SP.data.has(SP.src) || !SP.sources.some((s) => s.id === SP.src)) return;
+  const r = await fetch(`${API}/spec/${SP.src}`);
+  if (r.ok) { SP.data.set(SP.src, new Uint8Array(await r.arrayBuffer())); SP.key = ''; }
+}
+/** The strip's time window [a, b] in seconds: SP.win around the playhead, or the whole piece. */
+function stripView() {
+  const dur = S.frames / S.fps, w = SP.win && SP.win < dur ? SP.win : dur;
+  const a = Math.max(0, Math.min(dur - w, (S.frame + 0.5) / S.fps - w / 2));
+  return [a, a + w];
+}
+/** Frames a sung span [t0, t1) is heard in: the first whose interval holds t0 to the last that starts before t1. */
+const spanFrames = (t0, t1) => { const a = clampF(Math.floor(t0 * S.fps + 1e-6)); return [a, clampF(Math.max(a, Math.ceil(t1 * S.fps - 1e-6) - 1))]; };
+function drawStrip() {
+  const c = $('spec'); if (!c.width || $('strip').hidden) return;
+  const x = c.getContext('2d'), dpr = devicePixelRatio || 1, w = c.width / dpr, h = c.height / dpr;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
+  const [a, b] = stripView(), X = (t) => ((t - a) / (b - a)) * w, y0 = STRIP.words, y1 = h - STRIP.notes, sh = y1 - y0;
+  x.font = '11px ui-monospace, monospace'; x.textBaseline = 'middle';
+  const src = SP.sources.find((s) => s.id === SP.src), data = SP.data.get(SP.src);
+  if (src && data) {
+    const m = src.meta, px = Math.max(1, Math.round(w * dpr)), key = `${SP.src}|${a}|${b}|${px}`;
+    if (key !== SP.key) {
+      // one image column per device pixel: the loudest analysis column under it (none skipped when zoomed out)
+      const img = new ImageData(px, m.rows), cps = m.sr / m.hop;
+      for (let i = 0; i < px; i++) {
+        const ca = (a + ((b - a) * i) / px - m.t0) * cps, cb = (a + ((b - a) * (i + 1)) / px - m.t0) * cps;
+        let lo = Math.round((ca + cb) / 2), hi = lo + 1;
+        if (cb - ca >= 1) { lo = Math.floor(ca); hi = Math.ceil(cb); }
+        lo = Math.max(0, lo); hi = Math.min(m.cols, hi);
+        for (let r = 0; r < m.rows; r++) {
+          let v = 0;
+          for (let k = lo; k < hi; k++) v = Math.max(v, data[k * m.rows + r]);
+          const o = ((m.rows - 1 - r) * px + i) * 4, col = LUT[v];
+          img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
+        }
+      }
+      SP.img ??= document.createElement('canvas');
+      SP.img.width = px; SP.img.height = m.rows;
+      SP.img.getContext('2d').putImageData(img, 0, 0);
+      SP.key = key;
+    }
+    x.imageSmoothingEnabled = true;
+    x.drawImage(SP.img, 0, y0, w, sh);
+    // frequency ticks
+    x.fillStyle = 'rgba(255,255,255,0.55)';
+    for (const f of [100, 200, 500, 1000, 2000, 4000]) {
+      const y = y1 - (Math.log(f / m.fmin) / Math.log(m.fmax / m.fmin)) * sh;
+      x.fillRect(0, y, 5, 1); x.fillText(f >= 1000 ? `${f / 1000}k` : String(f), 7, y);
+    }
+  } else { x.fillStyle = '#555'; x.fillText(SP.sources.length ? 'loading the spectrogram…' : 'no audio to show (the video has no audio track; --audio adds one)', 8, y0 + sh / 2); }
+  const m = SP.marks;
+  // beats (amber, so they read over the music's own hits): a faint line and a tick at the foot;
+  // downbeats a full line with their bar number
+  if (m && $('sBeats').checked) {
+    for (const t of m.beats) if (t >= a && t <= b) {
+      x.fillStyle = 'rgba(255,178,30,0.28)'; x.fillRect(X(t), y0, 1, sh);
+      x.fillStyle = 'rgba(255,178,30,0.95)'; x.fillRect(X(t) - 1, y1 - 6, 3, 6);
+    }
+    const roomy = m.downbeats.length > 1 && ((m.downbeats[1] - m.downbeats[0]) / (b - a)) * w > 24;
+    m.downbeats.forEach((t, i) => {
+      if (t < a || t > b) return;
+      x.fillStyle = 'rgba(255,178,30,0.75)'; x.fillRect(X(t), y0, 1, sh);
+      if (!roomy) return;
+      const lab = `bar ${i + 1}`, tw = x.measureText(lab).width;
+      x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(X(t) + 2, y1 - 20, tw + 6, 13);
+      x.fillStyle = '#ffd27a'; x.fillText(lab, X(t) + 5, y1 - 13);
+    });
+  }
+  // words: onset line through the spectrogram, the word and its sung span in the band above
+  SP.hits = [];
+  if (m && $('sWords').checked) {
+    let free = -Infinity;
+    for (const wd of m.words) {
+      const end = wd.end ?? wd.start;
+      if (end < a || wd.start > b) continue;
+      const xa = X(wd.start), xb = Math.max(xa + 2, X(end));
+      x.fillStyle = 'rgba(76,200,255,0.9)'; x.fillRect(xa, y0, 1, sh);
+      x.fillStyle = 'rgba(76,200,255,0.35)'; x.fillRect(xa, y0 - 4, xb - xa, 3);
+      const tw = x.measureText(wd.text).width;
+      if (xa >= free) { x.fillStyle = '#bfefff'; x.fillText(wd.text, xa + 2, 7); free = xa + tw + 8; }
+      SP.hits.push({ wd, a: xa - 2, b: Math.max(xb, xa + tw + 4) });
+    }
+  }
+  // in/out, a drag in progress, notes along the bottom
+  const F = (f) => X(f / S.fps);
+  if (S.inF != null || S.outF != null) {
+    const ia = F(S.inF ?? S.outF), ib = F((S.outF ?? S.inF) + 1);
+    x.fillStyle = 'rgba(76,200,255,0.16)'; x.fillRect(Math.min(ia, ib), y0, Math.abs(ib - ia), sh);
+  }
+  if (SP.drag?.moved) {
+    const [fa, fb] = spanFrames(Math.min(SP.drag.t0, SP.drag.t1), Math.max(SP.drag.t0, SP.drag.t1));
+    x.fillStyle = 'rgba(76,200,255,0.3)'; x.fillRect(F(fa), y0, F(fb + 1) - F(fa), sh);
+  }
+  for (const n of S.doc.notes) {
+    if (n.status === 'resolved' && !S.showResolved) continue;
+    x.fillStyle = n.id === S.selected ? D.COLOR.active : n.status === 'resolved' ? D.COLOR.resolved : D.COLOR.open;
+    const na = F(n.range?.inFrame ?? n.frame), nb = Math.max(na + 2, F((n.range?.outFrame ?? n.frame) + 1));
+    if (nb >= 0 && na <= w) x.fillRect(na, y1 + 2, nb - na, STRIP.notes - 3);
+  }
+  // hover and playhead: the current frame's interval, its start as the line
+  if (SP.hover != null) { x.fillStyle = 'rgba(255,255,255,0.35)'; x.fillRect(X(SP.hover), y0, 1, sh); }
+  const pa = F(S.frame);
+  x.fillStyle = 'rgba(255,255,255,0.16)'; x.fillRect(pa, 0, Math.max(1, F(S.frame + 1) - pa), h);
+  x.fillStyle = '#fff'; x.fillRect(pa, 0, 1.5, h);
+  // the window's span, top right over the word band
+  const span = `${fmt(a)} – ${fmt(b)}`, sw = x.measureText(span).width;
+  x.fillStyle = 'rgba(13,13,13,0.85)'; x.fillRect(w - sw - 10, 0, sw + 10, STRIP.words - 4);
+  x.fillStyle = 'rgba(255,255,255,0.5)'; x.fillText(span, w - sw - 5, 7);
+}
+/** Next or previous word onset (or beat) from the playhead, landing on the frame it is heard in. */
+function markJump(kind, dir) {
+  const m = SP.marks; if (!m) return;
+  const ts = kind === 'word' && m.words.length ? m.words.map((w) => w.start) : m.beats;
+  const fs = [...new Set(ts.map((t) => spanFrames(t, t)[0]))].sort((p, q) => p - q);
+  const f = dir > 0 ? fs.find((k) => k > S.frame) : [...fs].reverse().find((k) => k < S.frame);
+  if (f != null) { togglePlay(false); setFrame(f); }
+}
+function bindStrip() {
+  const c = $('spec');
+  const tAt = (e) => { const r = c.getBoundingClientRect(), [a, b] = stripView(); return a + ((e.clientX - r.left) / r.width) * (b - a); };
+  c.addEventListener('pointerdown', (e) => {
+    const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    togglePlay(false);
+    // a word in the band above: its sung span becomes in→out (R makes the note)
+    const hit = py < STRIP.words && SP.hits.find((hh) => px >= hh.a && px <= hh.b);
+    if (hit) { [S.inF, S.outF] = spanFrames(hit.wd.start, hit.wd.end ?? hit.wd.start); setFrame(S.inF); marksText(); return; }
+    c.setPointerCapture(e.pointerId);
+    SP.drag = { x: e.clientX, t0: tAt(e), t1: tAt(e), moved: false };
+  });
+  c.addEventListener('pointermove', (e) => {
+    SP.hover = tAt(e);
+    if (!SP.drag) return;
+    SP.drag.t1 = SP.hover;
+    if (Math.abs(e.clientX - SP.drag.x) > 4) SP.drag.moved = true;
+  });
+  c.addEventListener('pointerup', () => {
+    const d = SP.drag; SP.drag = null;
+    if (!d) return;
+    // a click seeks; a drag marks the frames the dragged sound is heard in and opens a range note on them
+    if (!d.moved) { setFrame(Math.floor(d.t0 * S.fps + 1e-6)); return; }
+    [S.inF, S.outF] = spanFrames(Math.min(d.t0, d.t1), Math.max(d.t0, d.t1));
+    marksText(); rangeNote();
+  });
+  c.addEventListener('pointerleave', () => { SP.hover = null; });
+  c.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) {
+      const dur = S.frames / S.fps, cur = SP.win || dur;
+      const nw = Math.max(1, Math.min(dur, cur * Math.exp(e.deltaY * 0.002)));
+      SP.win = nw >= dur ? 0 : nw;
+      $('sZoom').value = [...$('sZoom').options].find((o) => Math.abs(+o.value - SP.win) < 0.01)?.value ?? '';
+      return;
+    }
+    const n = wheelFrames(e);
+    if (n) { togglePlay(false); setFrame(S.frame + n * (e.shiftKey ? S.fps : 1)); }
+  }, { passive: false });
+  $('sSrc').onchange = () => { SP.src = $('sSrc').value; SP.key = ''; specData(); };
+  $('sZoom').onchange = () => { SP.win = +$('sZoom').value; };
+  const show = (on) => { $('strip').hidden = !on; $('bStrip').classList.toggle('on', on); layout(); try { localStorage.setItem('markup.strip', on ? '1' : '0'); } catch {} };
+  $('bStrip').onclick = () => show($('strip').hidden);
+  let on = true; try { on = localStorage.getItem('markup.strip') !== '0'; } catch {}
+  show(on);
+  return show;
+}
+// a mouse notch is one event of ~100 px; a trackpad sends many small ones, summed to 30 px a frame
+let wheelAcc = 0;
+function wheelFrames(e) {
+  if (e.deltaMode !== 0 || Math.abs(e.deltaY) >= 50) return Math.sign(e.deltaY);
+  wheelAcc += e.deltaY; const n = Math.trunc(wheelAcc / 30); wheelAcc -= n * 30;
+  return n;
+}
+
 // ---------- input ----------
 function bindTimeline() {
   const c = $('tl');
   const fAt = (e) => { const r = c.getBoundingClientRect(); return tlF(e.clientX - r.left, r.width); };
-  let drag = false, acc = 0;
+  let drag = false;
   c.addEventListener('pointerdown', (e) => {
     const r = c.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     if (py > TL.ruler + TL.scenes) {
@@ -543,10 +744,7 @@ function bindTimeline() {
       S.view = [a, a + span]; return;
     }
     // plain wheel: step frames (a notch is one frame; Shift: one second)
-    // (a mouse notch is one event of ~100 px; a trackpad sends many small ones, summed to 30 px a frame)
-    let n;
-    if (e.deltaMode !== 0 || Math.abs(e.deltaY) >= 50) n = Math.sign(e.deltaY);
-    else { acc += e.deltaY; n = Math.trunc(acc / 30); acc -= n * 30; }
+    const n = wheelFrames(e);
     if (!n) return;
     togglePlay(false); setFrame(S.frame + n * (e.shiftKey ? S.fps : 1));
   }, { passive: false });
@@ -614,6 +812,8 @@ function bindKeys() {
       o: () => { S.outF = S.frame; if (S.inF != null && S.inF > S.outF) S.inF = null; marksText(); },
       v: () => setTool('select'), p: () => setTool('pin'), b: () => setTool('box'), d: () => setTool('draw'),
       n: () => openComposer({ frame: S.frame, shape: null }), r: () => rangeNote(),
+      '.': () => markJump('word', 1), ',': () => markJump('word', -1), '>': () => markJump('beat', 1), '<': () => markJump('beat', -1),
+      a: () => $('bStrip').click(),
       Escape: () => { if (S.draft) closeComposer(); else if (S.inF != null || S.outF != null) { S.inF = S.outF = null; marksText(); } else S.selected = null; renderList(); },
       Delete: () => { const n = S.doc.notes.find((m) => m.id === S.selected); if (n && confirm(`Delete note ${n.id}?`)) api('DELETE', `/notes/${n.id}`).then(accept); },
     }[k.length === 1 ? k.toLowerCase() : k];
@@ -649,7 +849,7 @@ function bindButtons() {
 
 function loop() {
   media.tick();
-  drawOverlay(); drawTimeline();
+  drawOverlay(); drawTimeline(); drawStrip();
   $('clock').textContent = fmt(tOf(S.frame));
   $('frameNo').textContent = `f ${S.frame} / ${S.frames - 1}`;
   const sc = sceneAt(S.frame);
@@ -687,7 +887,9 @@ async function main() {
   if (S.mode === 'live') { accept(await api('PUT', '/meta', media.info)); refreshBlocks(); }
   applyMeta();
   const d = S.doc;
-  bindTimeline(); bindOverlay(); bindKeys(); setTool('select'); marksText();
+  bindTimeline(); bindStrip(); bindOverlay(); bindKeys(); setTool('select'); marksText();
+  SP.version = r.audioVersion;
+  loadAudio().catch((e) => toast('audio strip: ' + e.message, true));
   addEventListener('resize', layout); new ResizeObserver(layout).observe($('stage'));
   layout();
   const f0 = +(new URLSearchParams(location.search).get('f') ?? 0);

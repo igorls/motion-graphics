@@ -32,8 +32,23 @@
           <span id="marks"></span>
           <select id="rate" title="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
           <button id="bFit" title="Show the whole timeline (Ctrl+wheel zooms)">Fit</button>
+          <button id="bStrip" title="Show or hide the audio strip  A">Audio <kbd>A</kbd></button>
         </div>
         <canvas id="tl"></canvas>
+        <div id="strip">
+          <div id="sTools">
+            <select id="sSrc" title="The audio the strip shows" aria-label="Audio source"></select>
+            <label><input type="checkbox" id="sBeats" checked /> beats</label>
+            <label><input type="checkbox" id="sWords" checked /> words</label>
+            <select id="sZoom" title="How much the strip shows around the playhead (Ctrl+wheel on it zooms)" aria-label="Audio strip zoom">
+              <option value="0">whole</option><option value="30">30 s</option><option value="10">10 s</option><option value="4" selected>4 s</option><option value="2">2 s</option>
+            </select>
+            <span id="sInfo"></span>
+            <span class="grow"></span>
+            <span id="sWarn"></span>
+          </div>
+          <canvas id="spec" title="Click to seek · drag across a sound to make a range note on it · click a word for its in→out"></canvas>
+        </div>
       </section>
       <aside id="right">
         <div id="tools">
@@ -66,7 +81,7 @@
           <label><input type="checkbox" id="showResolved" /> resolved</label>
         </div>
         <ol id="notes"></ol>
-        <div class="keys">Space play · ←/→ frame (Shift 1 s) · wheel on the timeline steps frames, Ctrl+wheel zooms · [ ] scene · I/O in/out · Del deletes the selected note</div>
+        <div class="keys">Space play · ←/→ frame (Shift 1 s) · wheel on the timeline steps frames, Ctrl+wheel zooms · [ ] scene · , . word onset · &lt; &gt; beat · I/O in/out · A audio strip · Del deletes the selected note</div>
       </aside>
     </main>
     <script src="/__markup/draw.js"></script>
