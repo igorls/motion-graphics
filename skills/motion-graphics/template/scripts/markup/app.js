@@ -71,19 +71,22 @@ function liveMedia(src) {
       if (inside && el.paused) { el.currentTime = t - c.t; el.playbackRate = rate; el.play(); } else if (!inside && !el.paused) el.pause();
     }
   };
+  // a (re)loaded engine brings its own audio, size, length and timeline
+  const adopt = (m) => {
+    mg = m;
+    music?.pause(); for (const { el } of voice) el.pause();
+    music = m.music ? Object.assign(new Audio('/' + m.music), { preload: 'auto' }) : null;
+    voice = (m.voice ?? []).map((c) => ({ c, el: new Audio('/' + c.file) }));
+    fr.width = m.width; fr.height = m.height;
+    api.info = { fps: m.fps, duration: m.duration, width: m.width, height: m.height, format: m.format, scenes: m.timeline, title: m.title };
+  };
   const api = {
     el: fr, info: null,
     /** The engine's window.__mg (null while it reloads). */
     get mg() { return mg; },
     /** Render the current frame again (after a control changed). */
     redraw() { last = -1; },
-    ready: boot().then((m) => {
-      mg = m;
-      if (m.music) { music = new Audio('/' + m.music); music.preload = 'auto'; }
-      voice = (m.voice ?? []).map((c) => ({ c, el: new Audio('/' + c.file) }));
-      fr.width = m.width; fr.height = m.height;
-      api.info = { fps: m.fps, duration: m.duration, width: m.width, height: m.height, format: m.format, scenes: m.timeline, title: m.title };
-    }),
+    ready: boot().then(adopt),
     seek(f) { last = -1; draw(f); if (music) music.currentTime = tOf(f); t0 = tOf(f); clock0 = performance.now(); },
     play() { t0 = tOf(S.frame); clock0 = performance.now(); if (music) { music.currentTime = t0; music.playbackRate = rate; music.play(); } },
     pause() { music?.pause(); syncVoice(-1); },
@@ -96,11 +99,17 @@ function liveMedia(src) {
       }
       draw(S.frame);
     },
-    rate(r) { rate = r; if (music) music.playbackRate = r; t0 = tOf(S.frame); clock0 = performance.now(); },
+    rate(r) {
+      rate = r; if (music) music.playbackRate = r;
+      for (const { el } of voice) el.playbackRate = r;
+      t0 = tOf(S.frame); clock0 = performance.now();
+    },
     reload() {
-      const f = S.frame; mg = null; last = -1;
+      const f = S.frame; togglePlay(false); mg = null; last = -1;
       fr.src = fr.src;
-      boot().then((m) => { mg = m; draw(f); S.pending = null; refreshBlocks(); toast('engine reloaded after a code change'); }).catch((e) => toast('engine error: ' + e.message, true));
+      boot()
+        .then(async (m) => { adopt(m); await engineChanged(f); toast('engine reloaded after a code change'); })
+        .catch((e) => toast('engine error: ' + e.message, true));
     },
   };
   return api;
@@ -285,7 +294,9 @@ function renderBlock() {
       input.onchange = () => setControl(b, key, input.value.split(',').map(Number));
     }
     show(v);
+    input.id = `ctl-${b.id}-${key}`; lab.htmlFor = input.id;
     const rst = Object.assign(document.createElement('button'), { className: 'rst', textContent: '↺', title: 'Back to the value in the code' });
+    rst.setAttribute('aria-label', `Reset ${c.label ?? key} to the value in the code`);
     rst.onclick = () => setControl(b, key, null, true);
     row.append(lab, input, val, rst);
     ctl.append(row);
@@ -297,7 +308,8 @@ function renderBlock() {
 
 /** Change a control live: rebuild the block in the engine and re-render the frame. Nothing is written until Keep. */
 function setControl(b, key, value, rerender = false) {
-  if (!S.pending) S.pending = { block: b.id, set: {}, was: {}, wasSource: {} };
+  // the frame where tuning began is the change's frame: it is inside the block, wherever the playhead goes next
+  if (!S.pending) S.pending = { block: b.id, frame: S.frame, set: {}, was: {}, wasSource: {} };
   const p = S.pending;
   if (!(key in p.was)) { p.was[key] = b.values[key]; p.wasSource[key] = b.source[key]; }
   p.set[key] = value;
@@ -306,26 +318,32 @@ function setControl(b, key, value, rerender = false) {
   togglePlay(false);
   queueTune(b, { [key]: value }, rerender);
 }
-let tuneQ = null, tuneBusy = false;
-async function queueTune(b, patch, rerender) {
-  tuneQ = { ...(tuneQ ?? {}), ...patch };
-  if (tuneBusy) return;
-  tuneBusy = true;
-  try {
-    while (tuneQ) {
-      const q = tuneQ; tuneQ = null;
-      const r = await media.mg.tune(b.id, q);
-      b.values = r.values; b.source = r.source;
-      if (r.errors.length) toast(r.errors[0], true);
-      media.redraw();
-    }
-  } catch (e) { toast(String(e.message ?? e), true); }
-  tuneBusy = false;
-  if (rerender) renderBlock();
+// patches run one rebuild at a time, in order, each on its own block; a slider drag coalesces into one
+const tuneQ = [];
+let tuneRun = null;
+/** Resolves once this patch (and any queued before it) is live in the engine. */
+function queueTune(b, patch, rerender) {
+  const tail = tuneQ.at(-1);
+  if (tail?.b.id === b.id) Object.assign(tail.patch, patch); else tuneQ.push({ b, patch: { ...patch } });
+  tuneRun ??= (async () => {
+    try {
+      await null; // start after tuneRun is set, even when tune() throws synchronously (engine reloading)
+      while (tuneQ.length) {
+        const { b, patch } = tuneQ.shift();
+        try {
+          const r = await media.mg.tune(b.id, patch);
+          b.values = r.values; b.source = r.source;
+          if (r.errors.length) toast(r.errors[0], true);
+        } catch (e) { toast(String(e.message ?? e), true); }
+        media.redraw();
+      }
+    } finally { tuneRun = null; }
+  })();
+  return rerender ? tuneRun.then(renderBlock) : tuneRun;
 }
 async function keepChange() {
   const p = S.pending; if (!p) return;
-  const body = { ...p, frame: S.frame, text: $('bWhy').value.trim(), author: $('author').value.trim() || 'reviewer' };
+  const body = { ...p, frame: p.frame ?? S.frame, text: $('bWhy').value.trim(), author: $('author').value.trim() || 'reviewer' };
   try {
     accept(await api('POST', '/tune', body));
     S.pending = null; $('bWhy').value = ''; refreshBlocks();
@@ -336,7 +354,8 @@ async function revertPending() {
   const p = S.pending; if (!p) return;
   const back = Object.fromEntries(Object.keys(p.set).map((k) => [k, p.wasSource[k] === 'tune' ? p.was[k] : null]));
   S.pending = null;
-  await queueTune(blockById(p.block), back, true);
+  const b = blockById(p.block);
+  if (b) await queueTune(b, back, true);
   refreshBlocks();
 }
 /** Undo a kept change: the engine goes back now, the server rewrites tune.json and marks the record reverted. */
@@ -640,6 +659,21 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+/** Frame rate, length and size from the doc; the zoom resets when the length changed. */
+function applyMeta() {
+  const d = S.doc, changed = d.frames !== S.frames;
+  Object.assign(S, { fps: d.fps, frames: d.frames, width: d.width, height: d.height });
+  if (changed) S.view = [0, d.frames];
+  $('meta').textContent = `${d.width}×${d.height} · ${d.fps} fps · ${d.frames} frames · ${fmt(d.duration)}${S.mode === 'live' ? ' · live engine' : ''}`;
+}
+/** After the live engine reloads: its timeline, length or size may have changed with the code. */
+async function engineChanged(f) {
+  accept(await api('PUT', '/meta', media.info));
+  applyMeta(); layout();
+  S.pending = null; refreshBlocks();
+  setFrame(f);
+}
+
 async function main() {
   const r = await api('GET', '/doc');
   S.mode = r.mode; S.mediaVersion = r.mediaVersion; S.codeVersion = r.codeVersion;
@@ -651,9 +685,8 @@ async function main() {
   saved('loading media…');
   await media.ready;
   if (S.mode === 'live') { accept(await api('PUT', '/meta', media.info)); refreshBlocks(); }
+  applyMeta();
   const d = S.doc;
-  Object.assign(S, { fps: d.fps, frames: d.frames, width: d.width, height: d.height, view: [0, d.frames] });
-  $('meta').textContent = `${d.width}×${d.height} · ${d.fps} fps · ${d.frames} frames · ${fmt(d.duration)}${S.mode === 'live' ? ' · live engine' : ''}`;
   bindTimeline(); bindOverlay(); bindKeys(); setTool('select'); marksText();
   addEventListener('resize', layout); new ResizeObserver(layout).observe($('stage'));
   layout();

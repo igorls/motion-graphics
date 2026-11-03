@@ -41,6 +41,9 @@ export default class EndCard extends Scene {
     this.b0 = Math.ceil(this.ctx.audio.beatAt(this.ctx.start) - 1e-3) - (this.logo ? 0 : 1);
   }
 
+  // a control change rebuilds the block, so its GPU resources go with the old instance
+  dispose() { this.bg.dispose(); this.text.dispose(); this.glowL.dispose(); }
+
   render(f: Frame, out: THREE.WebGLRenderTarget) {
     const { renderer, comp, SAFE, audio } = this.ctx;
     const step: number = this.ctx.params.step;

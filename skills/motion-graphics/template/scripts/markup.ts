@@ -205,7 +205,8 @@ async function serve() {
       const p = path.join(project, dir);
       // tune.json written by this server is already live in the page; an edit from elsewhere reloads it like code
       if (existsSync(p)) watch(p, { recursive: true }, (_ev, f) => {
-        if (String(f ?? '').endsWith('tune.json') && Date.now() - ownTuneWrite < 1500) return;
+        const name = path.basename(String(f ?? ''));
+        if ((name === 'tune.json' || name === `tune.json.${process.pid}.tmp`) && Date.now() - ownTuneWrite < 1500) return;
         clearTimeout(t); t = setTimeout(() => codeVersion++, 300);
       });
     }
@@ -269,14 +270,21 @@ async function serve() {
         if (req.method === 'POST') {
           // Keep: write the changed controls to tune.json and record the change as a note
           const b: any = await req.json(), d = readDoc(docPath);
-          if (!d.scenes.some((s) => s.id === b.block)) return new Response(`no block ${b.block}`, { status: 400 });
+          const sc = d.scenes.find((s) => s.id === b.block);
+          if (!sc) return new Response(`no block ${b.block}`, { status: 400 });
           ownTuneWrite = Date.now();
-          applyTune(tunePath, String(b.block), b.set ?? {});
+          applyTune(tunePath, sc.id, b.set ?? {});
           const id = `n${1 + Math.max(0, ...d.notes.map((n) => +n.id.slice(1) || 0))}`;
-          d.notes.push(cleanNote(d, id, {
-            frame: b.frame, shape: b.shape ?? null, text: String(b.text ?? '').trim() || changeLine(b.set, b.was), author: b.author,
+          // the record belongs to the tuned block, wherever the playhead is now (revert reads `block`):
+          // its frame is pulled inside that block, and the block is set outright since blocks can overlap
+          const f0 = Math.ceil(sc.start * d.fps - 0.5), f1 = Math.max(f0, Math.ceil(sc.end * d.fps - 0.5) - 1);
+          const note = cleanNote(d, id, {
+            frame: Math.max(f0, Math.min(f1, Math.round(+b.frame) || 0)), shape: b.shape ?? null, text: String(b.text ?? '').trim() || changeLine(b.set, b.was), author: b.author,
             status: 'open', created: new Date().toISOString(), tune: { set: b.set, was: b.was, wasSource: b.wasSource, file: path.relative(project, tunePath).split(path.sep).join('/') },
-          }));
+          });
+          const bf = note.frame - Math.round(sc.start * d.fps);
+          Object.assign(note, { scene: sc.id, sceneT: +(note.t - sc.start).toFixed(4), sceneFrame: bf, block: sc.id, blockT: +(note.t - sc.start).toFixed(4), blockFrame: bf });
+          d.notes.push(note);
           // a pick from an agent's proposal closes the proposal and says which change carried it out
           const pr = b.pick && d.notes.find((n) => n.id === b.pick.note && n.variants);
           if (pr) Object.assign(pr, { status: 'resolved', resolved: new Date().toISOString(), resolution: `picked ${b.pick.option} (${id})`, variants: { ...pr.variants, picked: String(b.pick.option), pickedIn: id } });
@@ -292,9 +300,11 @@ async function serve() {
       }
       const nm = /^\/__markup\/api\/notes\/(n\d{1,6})$/.exec(u.pathname);
       if (nm) {
+        // body first: no await between reading the doc and writing it, so overlapping saves can't drop a note
+        const body = req.method === 'PUT' ? await req.json() : null;
         const d = readDoc(docPath), id = nm[1]!;
         if (req.method === 'PUT') {
-          const note = cleanNote(d, id, await req.json());
+          const note = cleanNote(d, id, body);
           if (!note.text.trim()) return new Response('a note needs text', { status: 400 });
           const i = d.notes.findIndex((n) => n.id === id);
           if (i >= 0) d.notes[i] = note; else d.notes.push(note);
@@ -436,6 +446,9 @@ async function exportNotes() {
   const docPath = docPathFor(src);
   if (!existsSync(docPath)) throw new Error(`no notes at ${docPath}`);
   const d = readDoc(docPath), root = path.dirname(docPath);
+  // ids become file names: only the server's own n<digits> (a hand-made notes file could say ../x)
+  const bad = d.notes.find((n) => !/^n\d{1,6}$/.test(String(n.id)));
+  if (bad) throw new Error(`note id ${JSON.stringify(bad.id)} in ${docPath} is not n<number>`);
   const notes = d.notes.filter((n) => flag('all') || n.status !== 'resolved').sort((a, b) => (a.range?.inFrame ?? a.frame) - (b.range?.inFrame ?? b.frame));
   const stem = path.basename(docPath).replace(/\.markup\.json$/i, '');
   const outDir = path.resolve(opt('out', path.join(root, `${stem}-markup`))!);

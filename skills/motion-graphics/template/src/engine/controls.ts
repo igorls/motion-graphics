@@ -40,8 +40,9 @@ export function coerce(c: Leaf, v: unknown): { value: unknown } | { error: strin
       const n = Number(v);
       if (!Number.isFinite(n)) return { error: `not a number: ${JSON.stringify(v)}` };
       let x = Math.min(c.max, Math.max(c.min, n));
-      if (c.type === 'int') x = Math.round(x);
-      else if (c.step) x = +(c.min + Math.round((x - c.min) / c.step) * c.step).toFixed(6);
+      // snap to the grid without leaving the range (min 0, max 1, step 0.6: 1 → 0.6, never 1.2)
+      if (c.type === 'int') x = Math.min(Math.floor(c.max), Math.max(Math.ceil(c.min), Math.round(x)));
+      else if (c.step) x = +(c.min + Math.min(Math.round((x - c.min) / c.step), Math.floor((c.max - c.min) / c.step + 1e-9)) * c.step).toFixed(6);
       return { value: x };
     }
     case 'bool': return typeof v === 'boolean' ? { value: v } : { error: `not a boolean: ${JSON.stringify(v)}` };

@@ -44,6 +44,9 @@ export default class Hook extends Scene {
     this.lineH = this.size * 0.92;
   }
 
+  // a control change rebuilds the block, so its GPU resources go with the old instance
+  dispose() { this.bg.dispose(); this.text.dispose(); this.glowL.dispose(); }
+
   render(f: Frame, out: THREE.WebGLRenderTarget) {
     const { renderer, comp, SAFE, end } = this.ctx;
     const cx = SAFE.x + SAFE.w / 2;
