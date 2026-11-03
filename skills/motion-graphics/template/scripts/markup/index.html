@@ -29,7 +29,8 @@
           <span class="grow"></span>
           <button id="bIn" title="Mark in  I">In</button>
           <button id="bOut" title="Mark out  O">Out</button>
-          <span id="marks"></span>
+          <button id="bLoop" class="on" title="Loop the in→out range when it is set  L">⟲ Loop <kbd>L</kbd></button>
+          <button id="marks" class="chip" title="Clear the range  Esc" hidden></button>
           <select id="rate" title="Playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
           <button id="bFit" title="Show the whole timeline (Ctrl+wheel zooms)">Fit</button>
           <button id="bStrip" title="Show or hide the audio strip  A">Audio <kbd>A</kbd></button>
@@ -81,7 +82,7 @@
           <label><input type="checkbox" id="showResolved" /> resolved</label>
         </div>
         <ol id="notes"></ol>
-        <div class="keys">Space play · ←/→ frame (Shift 1 s) · wheel on the timeline steps frames, Ctrl+wheel zooms · [ ] scene · , . word onset · &lt; &gt; beat · I/O in/out · A audio strip · Del deletes the selected note</div>
+        <div class="keys">Space play · ←/→ frame (Shift 1 s) · wheel on the timeline steps frames, Ctrl+wheel zooms · [ ] scene · , . word onset · &lt; &gt; beat · I/O in/out (Play loops it; L toggles, Esc clears; a range note or a word sets it) · A audio strip · Del deletes the selected note</div>
       </aside>
     </main>
     <script src="/__markup/draw.js"></script>

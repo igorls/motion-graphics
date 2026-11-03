@@ -293,7 +293,7 @@ async function serve() {
     author: opt('author') ?? '',
   });
   const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
-  const files: Record<string, string> = { '/__markup/': 'index.html', '/__markup/app.js': 'app.js', '/__markup/draw.js': 'draw.js', '/__markup/style.css': 'style.css' };
+  const files: Record<string, string> = { '/__markup/': 'index.html', '/__markup/app.js': 'app.js', '/__markup/draw.js': 'draw.js', '/__markup/loop.js': 'loop.js', '/__markup/style.css': 'style.css' };
   const types: Record<string, string> = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8' };
 
   const server = Bun.serve({

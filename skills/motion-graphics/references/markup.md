@@ -21,7 +21,7 @@ It prints `http://127.0.0.1:8790/`. Send that to the user with one line on how t
 
 > Open http://127.0.0.1:8790/ and play or scrub to a moment (←/→ steps one frame, the wheel over the timeline does too). Press P for a pin, B to box a region, D to draw, or I and O to mark a range and then R. Write what should change and press Enter; every note saves right away. Tell me when you're done.
 
-The video plays with its audio. The timeline shows the scene blocks, the notes and the in/out marks; Ctrl+wheel zooms it. Notes save one at a time to `<video>.markup.json` next to the video. The page polls that file, so notes you resolve show up there (green, with your resolution line) and a re-rendered video offers a reload.
+The video plays with its audio. The timeline shows the scene blocks, the notes and the in/out marks; Ctrl+wheel zooms it. With in and out set, Play loops the range ([below](#the-audio-strip-where-the-sound-is)). Notes save one at a time to `<video>.markup.json` next to the video. The page polls that file, so notes you resolve show up there (green, with your resolution line) and a re-rendered video offers a reload.
 
 `--port` picks another port (each serve needs its own); `--author` pre-fills the name; `--fps` overrides the probed rate.
 
@@ -48,6 +48,7 @@ bun scripts/markup.ts serve --video film.mp4 --scenes ../parts.json --lyrics ../
   - Click a word above the spectrogram to set in→out to its sung span, then press R.
   - `.` / `,` jump to the next / previous word onset (beats when there are no words), and `>` / `<` to the next / previous beat, each landing on the frame the onset is heard in.
   - A hides or shows the strip.
+- **Looping a range:** with in and out set, Play loops from the start of the in frame to the end of the out frame. It starts at in, or carries on when the playhead is already inside the range. The audio is re-seeked on every wrap, so the sound stays on the picture and the clock never runs past out by more than one display tick. Selecting a range note or clicking a word sets the range, so with the 0.25× or 0.5× rate you can watch a mouth against one syllable over and over. L (or the Loop button) turns looping off and on; Esc or the in/out chip clears the range. The range is drawn on the timeline, with its length in frames, and on the strip.
 - **Live mode:** the strip shows the engine's music (`project.music`) and is recomputed when the file changes.
 
 Reading lip sync on it: the engine draws frame k at time k / fps. A word whose onset falls inside frame k is heard during frame k, but anything keyed to `t >= onset` first shows on frame k + 1, up to a frame after the sound. Step from the frame `.` lands on to the next one. A mouth that is still closed when the syllable is bright reads as late; animators usually lead the sound by a frame rather than trail it.

@@ -41,7 +41,11 @@ main { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-
 #transport .play { min-width: 44px; }
 #clock { font: 600 16px ui-monospace, monospace; margin-left: 8px; }
 #frameNo { font: 13px ui-monospace, monospace; color: var(--dim); }
-#marks { font: 12px ui-monospace, monospace; color: var(--dim); }
+#marks { font: 12px ui-monospace, monospace; color: var(--dim); cursor: pointer; padding: 2px 9px; }
+#marks:hover { color: var(--text); border-color: #4a4a4a; }
+/* looping on: outlined until a range is set, filled while Play loops it */
+#bLoop.on { background: var(--panel2); color: var(--active); border-color: var(--active); }
+#bLoop.armed { background: var(--active); color: #111; }
 #tl { display: block; width: 100%; height: 104px; background: var(--panel); border-top: 1px solid var(--line); cursor: ew-resize; touch-action: none; }
 #strip { border-top: 1px solid var(--line); background: #0d0d0d; }
 #strip[hidden] { display: none; }
