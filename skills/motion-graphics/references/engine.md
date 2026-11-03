@@ -23,7 +23,8 @@ scripts/comfy.ts           ComfyUI batch runner: API workflow + overrides, one j
 scripts/voice.ts           voice-over: voices, design, audition, render takes (word timings, -16 LUFS), cues + SRT
 scripts/lyrics_align.py    sung lyrics -> public/lyrics.json: word timing from a local Whisper model (offline, provisional)
 scripts/parts.py           long pieces in parts: frame plan, exact audio crop + edit-time music map per part, join
-public/            media/, fonts/, audio/, audio.json: everything scenes load by URL
+scripts/markup.ts          review page: notes on frames, regions, ranges; live block controls; export to stills + MARKUP.md
+public/            media/, fonts/, audio/, audio.json, lyrics.json, tune.json (control overrides): everything scenes load by URL
 ```
 
 Requirements: bun, Google Chrome (driven headless through playwright-core), ffmpeg with libx264; uv for the audio analysis.
@@ -68,6 +69,21 @@ export default class Title extends Scene {
 ```
 
 Then add it to `src/timeline.ts`: `{ id: 'title', scene: Title, start: bar(0), end: bar(2), params: {...} }`. One module can serve several entries through `params` (e.g. three `reveal` entries with different photo pairs).
+
+### Controls: the numbers someone may want to nudge
+
+Declare them on the class, and read them from `this.ctx.params` with no fallback (the engine fills in the default):
+
+```ts
+static controls = {
+  glow: { type: 'number', min: 0, max: 3, step: 0.05, default: 1.6, label: 'Accent glow' },
+  step: { type: 'number', min: 0.25, max: 2, step: 0.25, default: 1, unit: 'beats' },
+  ease: { type: 'enum', options: ['outExpo', 'outBack'], default: 'outExpo' },
+  title: { type: 'group', label: 'Title', controls: { y: { type: 'number', min: -0.2, max: 0.2, default: 0, unit: 'frame h' } } },
+} satisfies Controls;   // types: number, int, bool, enum, color (#rrggbb), vec2, group
+```
+
+A scene's params resolve as: the controls' defaults, then the timeline entry's `params`, then `public/tune.json` (`{ "<entry id>": { "glow": 0.6, "title.y": -0.03 } }`), each checked against its declaration. Previews and offline renders read the same file, so a still shows exactly what the page showed. The markup page's live mode turns controls into sliders for the block under the playhead ([markup.md](markup.md#block-controls-live-mode)). Make a control of what a person would tune by eye: timings in beats, intensities, colours, offsets, sizes. Structure (word lists, which clip, what happens) stays in code. An unknown key in `tune.json` or a wrong type is a scene error, never ignored. `?notune=1` renders without the file.
 
 ### What a scene gets
 

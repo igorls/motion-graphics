@@ -8,7 +8,8 @@
     "stills": "bun scripts/render.ts stills",
     "sheet": "bun scripts/render.ts sheet",
     "video": "bun scripts/render.ts video",
-    "poster": "bun scripts/render.ts poster"
+    "poster": "bun scripts/render.ts poster",
+    "markup": "bun scripts/markup.ts serve"
   },
   "dependencies": {
     "three": "^0.186.0"

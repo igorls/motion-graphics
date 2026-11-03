@@ -8,6 +8,7 @@ import { Compositor, FSPass, clearRT, makeRT, W, H, PW, PH, SCALE } from './gl';
 import { SAFE } from './format';
 import { DEFAULT_POST, Post, type PostParams } from './post';
 import type { Frame, SceneClass, Scene } from './scene';
+import { resolveParams, type Controls, type Source, type Tune } from './controls';
 
 export interface TimelineEntry {
   id: string;
@@ -19,7 +20,10 @@ export interface TimelineEntry {
   post?: Partial<PostParams>;
 }
 
-interface Loaded { entry: TimelineEntry; scene: Scene | null }
+interface Loaded { entry: TimelineEntry; scene: Scene | null; values: Record<string, unknown>; source: Record<string, Source> }
+
+/** A scene class's declared controls (`static controls`), if any. */
+const controlsOf = (e: TimelineEntry) => (e.scene as unknown as { controls?: Controls }).controls;
 
 /**
  * Adaptive motion blur: the sub-frame count per frame steps through 4, 12, 36, 108, 324 (from `min`
@@ -57,6 +61,8 @@ export class Engine {
   timeline: TimelineEntry[] = [];
   loaded = new Map<string, Loaded>();
   errors: string[] = [];
+  /** The tune.json overrides in effect (see controls.ts). */
+  tuning: Tune = {};
   lastPost: PostParams = { ...DEFAULT_POST };
   /** Sub-frames used for the last rendered frame. */
   lastSamples = 1;
@@ -120,24 +126,57 @@ export class Engine {
     this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   }
 
-  async init(audio: Audio, timeline: TimelineEntry[], only?: string[]) {
+  async init(audio: Audio, timeline: TimelineEntry[], only?: string[], tune: Tune = {}) {
     this.audio = audio;
     this.timeline = timeline;
+    this.tuning = tune;
     this.post = new Post();
     const entries = only?.length ? timeline.filter((e) => only.includes(e.id)) : timeline;
-    await Promise.all(entries.map(async (e) => {
-      const rec: Loaded = { entry: e, scene: null };
-      this.loaded.set(e.id, rec);
-      try {
-        const s = new e.scene({
-          renderer: this.renderer, audio, comp: this.comp, W, H, SAFE, id: e.id, params: e.params ?? {}, start: e.start, end: e.end,
-        });
-        await s.init();
-        rec.scene = s;
-      } catch (err) {
-        this.errors.push(`[${e.id}] init: ${(err as Error)?.stack ?? err}`);
-      }
-    }));
+    for (const id of Object.keys(tune)) if (!timeline.some((e) => e.id === id)) this.errors.push(`[tune.json] no timeline entry "${id}"`);
+    await Promise.all(entries.map((e) => this.build(e)));
+  }
+
+  /** Construct and init one entry's scene with its resolved params (controls <- timeline <- tune.json). */
+  private async build(e: TimelineEntry) {
+    const { params, values, source } = resolveParams(controlsOf(e), e.params ?? {}, this.tuning[e.id], this.errors, e.id);
+    const rec: Loaded = { entry: e, scene: null, values, source };
+    try {
+      const s = new e.scene({
+        renderer: this.renderer, audio: this.audio, comp: this.comp, W, H, SAFE, id: e.id, params, start: e.start, end: e.end,
+      });
+      await s.init();
+      rec.scene = s;
+    } catch (err) {
+      this.errors.push(`[${e.id}] init: ${(err as Error)?.stack ?? err}`);
+    }
+    this.loaded.get(e.id)?.scene?.dispose();
+    this.loaded.set(e.id, rec);
+    return rec;
+  }
+
+  /** The blocks: every loaded entry with its window, declared controls, current values and where each came from. */
+  blocks() {
+    return this.timeline.filter((e) => this.loaded.has(e.id)).map((e) => {
+      const rec = this.loaded.get(e.id)!;
+      return { id: e.id, scene: e.scene.name, start: e.start, end: e.end, controls: controlsOf(e) ?? {}, values: rec.values, source: rec.source, tune: { ...(this.tuning[e.id] ?? {}) } };
+    });
+  }
+
+  /**
+   * Change one entry's overrides in memory and rebuild that entry (scenes read params in init), e.g.
+   * from the markup page's sliders. A null value removes the override. Returns the entry's new values.
+   * Persisting is the caller's job (the markup server writes public/tune.json).
+   */
+  async tune(id: string, patch: Record<string, unknown>) {
+    const e = this.timeline.find((x) => x.id === id);
+    if (!e || !this.loaded.has(id)) throw new Error(`no loaded timeline entry "${id}"`);
+    const next = { ...(this.tuning[id] ?? {}) };
+    for (const [k, v] of Object.entries(patch)) if (v === null) delete next[k]; else next[k] = v;
+    this.tuning = { ...this.tuning, [id]: next };
+    if (!Object.keys(next).length) delete this.tuning[id];
+    const before = this.errors.length;
+    const rec = await this.build(e);
+    return { values: rec.values, source: rec.source, errors: this.errors.slice(before) };
   }
 
   get duration() { return this.timeline.reduce((m, e) => Math.max(m, e.end), 0); }

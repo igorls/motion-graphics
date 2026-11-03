@@ -38,6 +38,7 @@ export class BgField {
     (u.lightPos!.value as THREE.Vector2).set(o.x, o.y);
     this.pass.render(r, out);
   }
+  dispose() { this.pass.dispose(); }
 }
 
 /** Fill style for the wordmark: the brand gradient across [x0, x1], or the solid accent. */
