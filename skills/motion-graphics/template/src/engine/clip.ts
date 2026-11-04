@@ -9,18 +9,31 @@ export interface ClipManifest {
   bbox?: { x: number; y: number; w: number; h: number };
 }
 
+/** GET that rides out a dropped connection, which would otherwise cost the whole scene. A bad status is final. */
+async function get(url: string): Promise<Blob> {
+  for (let wait = 250; ; wait *= 2) {
+    let r: Response;
+    try {
+      r = await fetch(url);
+      if (r.ok) return await r.blob();
+    } catch (e) {
+      if (wait > 2000) throw new Error(`${url}: ${(e as Error).message}`);
+      await new Promise((go) => setTimeout(go, wait));
+      continue;
+    }
+    throw new Error(`${url}: HTTP ${r.status}`);
+  }
+}
+
 export class Clip {
   private constructor(public m: ClipManifest, private frames: ImageBitmap[]) {}
 
   /** Load public/clips/<name>/ (clip.json + frames). Memory: width x height x 4 bytes per frame. */
   static async load(name: string): Promise<Clip> {
     const base = `clips/${name}/`;
-    const m = (await (await fetch(`${base}clip.json`)).json()) as ClipManifest;
-    const frames = await Promise.all(Array.from({ length: m.count }, async (_, i) => {
-      const r = await fetch(`${base}f_${String(i + 1).padStart(4, '0')}.${m.ext}`);
-      if (!r.ok) throw new Error(`clip ${name}: frame ${i + 1} missing`);
-      return createImageBitmap(await r.blob(), { premultiplyAlpha: 'default' });
-    }));
+    const m = JSON.parse(await (await get(`${base}clip.json`)).text()) as ClipManifest;
+    const frames = await Promise.all(Array.from({ length: m.count }, async (_, i) =>
+      createImageBitmap(await get(`${base}f_${String(i + 1).padStart(4, '0')}.${m.ext}`), { premultiplyAlpha: 'default' })));
     return new Clip(m, frames);
   }
 
