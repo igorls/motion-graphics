@@ -48,7 +48,7 @@ void main() {
     float R = 1.15, rad = R * proj11 * 0.5 / max(-P.z, 0.5), sum = 0.0;
     for (int i = 0; i < 16; i++) {
       float a = (float(i) + jit) * 2.399963, r = sqrt((float(i) + 0.5) / 16.0);
-      vec2 o = vec2(cos(a), sin(a) * uRes.x / uRes.y) * r * rad;
+      vec2 o = vec2(cos(a) * uRes.y / uRes.x, sin(a)) * r * rad;
       vec3 v = viewAt(uv + o) - P;
       float l = length(v);
       sum += max(dot(N, v / max(l, 1e-3)) - 0.08, 0.0) * smoothstep(R * 1.6, R * 0.4, l);

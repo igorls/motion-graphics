@@ -66,7 +66,7 @@ def load_lyrics(path):
     p = pathlib.Path(path)
     if p.suffix.lower() == ".json":
         lines = json.loads(p.read_text(encoding="utf-8"))["lines"]
-        return [{"id": l.get("id", f"L{i + 1:02d}"), "text": l["text"], **({"window": l["window"]} if "window" in l else {})}
+        return [{"id": l.get("id", f"L{i + 1:02d}"), "text": l["text"], **{k: l[k] for k in ("voice", "window") if k in l}}
                 for i, l in enumerate(lines)]
     out = []
     for raw in p.read_text(encoding="utf-8").splitlines():
@@ -75,10 +75,10 @@ def load_lyrics(path):
             continue
         cols = [c.strip() for c in s.split(" | ")]
         # "text", "id | text", or "id | voice | text" for a song with more than one singer
-        if len(cols) >= 3 and len(cols[1]) <= 3:
+        if len(cols) >= 3:
             out.append({"id": cols[0], "voice": cols[1], "text": " | ".join(cols[2:])})
-        elif len(cols) >= 2:
-            out.append({"id": cols[0], "text": " | ".join(cols[1:])})
+        elif len(cols) == 2:
+            out.append({"id": cols[0], "text": cols[1]})
         else:
             out.append({"id": f"L{len(out) + 1:02d}", "text": s})
     return out

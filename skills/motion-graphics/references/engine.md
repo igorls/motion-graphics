@@ -327,7 +327,7 @@ An exported frame costs `sub-frames × (scene render) + readback`. Measured on a
 
 ## Debugging
 
-- `SCENE ERRORS` from the render script, and scenes that failed to init show as dark red. Read the errors: they include the stack. A video or poster render stops on any scene error or request that never succeeded and writes nothing, so a bad render can't replace a good file (it renders to `<name>.part.mp4` and is renamed at the end). Stills and sheets are still written, so a broken scene can be looked at, but the run exits 1. Clip frames retry a dropped connection; a bad HTTP status is final.
+- `SCENE ERRORS` from the render script, and scenes that failed to init show as dark red. Read the errors: they include the stack. A video or poster render stops on any scene error or request that never succeeded and writes nothing, so a bad render can't replace a good file (it renders to `<name>.part.mp4` and is renamed at the end). Stills, sheets and `check` sheets are still written, so a broken scene can be looked at, but the run exits 1. Clip frames retry a dropped connection; a bad HTTP status is final.
 - `--only id1,id2` loads just those timeline entries (fast, and isolates a broken scene).
 - Renders while you edit: the render script starts its own server with live reload off; if you point it at your dev server with `--url`, a save mid-render reloads the page.
 - Colours look shifted in a player: the export tags BT.709; if you post-process with other tools, keep the tags.

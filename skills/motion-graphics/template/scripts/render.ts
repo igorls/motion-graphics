@@ -159,10 +159,12 @@ async function sheet(page: Page, info: Info, times: number[], cols: number, out:
 async function check(url: string, formats: string[], times: number[], out: string) {
   const rows: string[] = [];
   for (const [i, fmt] of formats.entries()) {
-    const { browser, page, info, logs } = await openPage(url, fmt);
+    const { browser, page, info, logs, failed } = await openPage(url, fmt);
     try {
-      if (info.errors.length) { console.error(`SCENE ERRORS (${fmt}):\n` + info.errors.join('\n')); process.exitCode = 1; }
       rows.push(await tiles(page, info, times, times.length, { samples: sampling('1'), cell: +opt('cell', '360')!, label: fmt }));
+      // after sampling: a scene can boot clean and throw on a frame, and the sheet is still worth writing
+      const f = await faults(page, failed);
+      if (f.length) { console.error(`FAULTS (${fmt}):\n` + f.join('\n')); process.exitCode = 1; }
       if (i === formats.length - 1) {
         const data: string = await page.evaluate(async (rows) => {
           const imgs = await Promise.all(rows.map((b64: string) => new Promise<HTMLImageElement>((res, rej) => {
@@ -283,9 +285,10 @@ async function video(page: Page, failed: Map<string, string>, info: Info, from: 
 }
 
 /** Render the poster frame at t, then replace frame 0 of the video with it (same length, audio copied). */
-async function poster(page: Page, info: Info, t: number, videoPath: string) {
+async function poster(page: Page, failed: Map<string, string>, info: Info, t: number, videoPath: string) {
   const jpg = videoPath.replace(/\.mp4$/, '.poster.png');
   await page.evaluate(({ t, s }) => (window as any).__mg.still(t, s, 0.5), { t, s: sampling('auto') });
+  await assertClean(page, failed); // a scene that throws at t draws red: never save or bake that
   await grab(page, jpg);
   console.log(jpg);
   if (!existsSync(videoPath)) { console.log(`(no ${videoPath} yet: poster saved only)`); return; }
@@ -329,7 +332,7 @@ try {
     await video(page, failed, info, +opt('from', '0')!, +opt('to', String(info.duration))!, path.resolve(opt('out', path.join(OUT, `${fmt}.mp4`))!));
   } else if (mode === 'poster') {
     if (!opt('t')) throw new Error('poster needs --t <seconds> (a settled, strongest frame)');
-    await poster(page, info, +opt('t')!, path.resolve(opt('video', path.join(OUT, `${fmt}.mp4`))!));
+    await poster(page, failed, info, +opt('t')!, path.resolve(opt('video', path.join(OUT, `${fmt}.mp4`))!));
   } else throw new Error(`unknown mode ${mode}`);
   const late = await page.evaluate(() => (window as any).__mg.errors as string[]);
   if (late.length > info.errors.length) console.error('SCENE ERRORS:\n' + late.slice(info.errors.length).join('\n'));

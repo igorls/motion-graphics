@@ -75,7 +75,7 @@ export function surface(kind: SurfaceKind, hex: string, o: { roughness?: number;
       #ifdef USE_INSTANCING
         sfW = instanceMatrix * sfW;
       #endif
-      sfW = modelMatrix * sfW; sfP = sfW.xyz; sfN = normalize(mat3(modelMatrix) * objectNormal);`);
+      sfW = modelMatrix * sfW; sfP = sfW.xyz; sfN = transformNormalByInverseViewMatrix(transformedNormal, viewMatrix);`);
     sh.fragmentShader = `varying vec3 sfP; varying vec3 sfN; uniform float floorY; uniform float sfBump;\n${NOISE}
       void sfEval(in vec3 P, in vec2 uv, out float base, out float rough, out float h) { base = 1.0; rough = 1.0; h = 0.0; ${BODIES[kind]} }\n` + sh.fragmentShader
       .replace('#include <color_fragment>', `#include <color_fragment>
