@@ -12,7 +12,13 @@ export interface LyricWord {
   status: string;
   spread?: number;
 }
-export interface LyricLine { id: string; text: string; words: LyricWord[] }
+export interface LyricLine {
+  id: string;
+  text: string;
+  /** Who sings it, from the lyrics file's voice column. */
+  voice?: string;
+  words: LyricWord[];
+}
 
 export class Lyrics {
   readonly byId: Record<string, LyricLine>;
@@ -21,7 +27,7 @@ export class Lyrics {
   static async load(url = 'lyrics.json', editZero = 0) {
     const d = await (await fetch(url)).json();
     return new Lyrics(d.lines.map((l: LyricLine) => ({
-      id: l.id, text: l.text,
+      id: l.id, text: l.text, ...(l.voice ? { voice: l.voice } : {}),
       words: l.words.map((w) => ({ ...w, start: w.start - editZero, end: w.end - editZero })),
     })));
   }

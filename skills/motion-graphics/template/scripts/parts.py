@@ -30,6 +30,7 @@ frame per part, and five parts can be two frames out by the end.
 import argparse
 import hashlib
 import json
+import math
 import pathlib
 import subprocess
 import sys
@@ -102,6 +103,10 @@ def cmd_plan(d, a):
     song = json.loads(path(d, d["audioJson"]).read_text(encoding="utf-8")) if d.get("audioJson") else None
     ok = True
     total = 0
+    # one project on the song's clock: the parts are render windows over it, on the same frame grid
+    windows = len(d["parts"]) > 1 and len({p.get("dir", p["name"]) for p in d["parts"]}) == 1
+    s0 = d["parts"][0]["from"]
+    base = math.floor(s0 * d["fps"] + 0.5)  # the renderer's frame for s0 (its Math.round), snapped once
     for i, p in enumerate(d["parts"]):
         n = frames(d, p)
         total += n
@@ -114,7 +119,11 @@ def cmd_plan(d, a):
                 db = nearest(song["downbeats"], p[edge])
                 if p[edge] > 0 and (db is None or abs(db - p[edge]) > 0.03):
                     notes.append(f"{edge} {p[edge]} is not on a downbeat (nearest {db})")
-        print(f"{p['name']}: {p['from']:.3f}-{p['to']:.3f} s, {n} frames -> bun scripts/render.ts video --to {n / d['fps']:.6f} "
+        cut = f"--to {n / d['fps']:.6f}"
+        if windows:
+            f0 = round((p["from"] - s0) * d["fps"])
+            cut = f"--from {(base + f0) / d['fps']:.9f} --to {(base + f0 + n) / d['fps']:.9f}"
+        print(f"{p['name']}: {p['from']:.3f}-{p['to']:.3f} s, {n} frames -> bun scripts/render.ts video {cut} "
               f"--noaudio --out <abs>/{p.get('video', 'out/silent.mp4')}" + ("".join(f"\n    ! {x}" for x in notes)))
     span = (d["parts"][0]["from"], d["parts"][-1]["to"])
     drift = total / d["fps"] - (span[1] - span[0])

@@ -68,6 +68,9 @@ Every take gets a music map (`analyze_audio.py ... --map-md MUSIC-MAP-<take>.md 
 |---|---|
 | Keeps going past the score, then junk or silence | lower the duration cap; write an outro; trim |
 | Voice-like sounds in an "instrumental" | say "instrumental, no vocals" in the style; lyrics = section tags only; keep every melody note in the instrument voice; try another seed |
+| The take overruns the plan | prompt-only models can run 25% or more long; re-read the lyric plan against what was sung |
+| Asked-for silences and breaks are missing | a prompted arrangement is a request, not a fact: compare the map with the planned moments and list where the take differs before the treatment; where the take gives no silence, the picture can make one |
+| Fast, syncopated styles map at the wrong tempo | `analyze_audio.py` scores 3:2 and 2:1 relatives and warns; drum and bass can read as two thirds of its tempo. Confirm by ear, or pass `--bpm` |
 | Tempo drifts | score-conditioned: shouldn't; prompt-only: pick a steadier take, or time-stretch (`rubberband`/`atempo`) the take to the target BPM |
 | Drop lands a beat late/early | check the analysis grid against the score; shift the edit by the measured offset rather than the music |
 | Muddy under voice-over | ask for "sparse mid-range, leaves space for voice-over"; or cut 200-500 Hz a few dB when mixing |

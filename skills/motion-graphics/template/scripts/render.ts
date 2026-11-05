@@ -19,7 +19,7 @@
 //
 // Look at every still and sheet you render (open the PNG): that is how the work gets checked.
 import { chromium, type Page } from 'playwright-core';
-import { mkdirSync, existsSync } from 'node:fs';
+import { renameSync, rmSync, mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 const argv = process.argv.slice(2);
@@ -69,6 +69,9 @@ async function openPage(url: string, format = opt('format')) {
   const logs: string[] = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`[${m.type()}] ${m.text()}`); });
   page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
+  const failed = new Map<string, string>(); // requests that never succeeded: a retry that works clears its entry
+  page.on('requestfailed', (r) => { const why = r.failure()?.errorText ?? 'failed'; if (!why.includes('ABORTED')) failed.set(r.url(), why); });
+  page.on('requestfinished', (r) => failed.delete(r.url()));
   const qs = new URLSearchParams({ export: '1' });
   for (const k of ['scale', 'only', 'fps']) if (opt(k)) qs.set(k, opt(k)!);
   if (format) qs.set('format', format);
@@ -82,11 +85,22 @@ async function openPage(url: string, format = opt('format')) {
       voice: (m.voice ?? []) as { id: string; file: string; t: number; gain: number; duration: number }[], mix: m.mix as { musicDb: number; duckDb: number } | undefined };
   });
   await page.setViewportSize({ width: info.width, height: info.height });
-  return { browser, page, logs, info };
+  return { browser, page, logs, info, failed };
 }
 
 type Info = Awaited<ReturnType<typeof openPage>>['info'];
 type Sampling = ReturnType<typeof sampling>;
+
+/** What makes a render wrong: a failed scene draws solid red, and a request that never succeeded leaves something out. */
+async function faults(page: Page, failed: Map<string, string>) {
+  const scenes: string[] = await page.evaluate(() => (window as any).__mg.errors);
+  return [...scenes, ...[...failed].map(([url, why]) => `${why}: ${url}`)];
+}
+
+async function assertClean(page: Page, failed: Map<string, string>) {
+  const f = await faults(page, failed);
+  if (f.length) throw new Error(`render stopped, nothing written:\n${f.join('\n')}`);
+}
 
 /** Times snapped to the frame grid (see the header). */
 const snap = (times: number[], fps: number) => times.map((t) => Math.round(t * fps) / fps);
@@ -145,10 +159,12 @@ async function sheet(page: Page, info: Info, times: number[], cols: number, out:
 async function check(url: string, formats: string[], times: number[], out: string) {
   const rows: string[] = [];
   for (const [i, fmt] of formats.entries()) {
-    const { browser, page, info, logs } = await openPage(url, fmt);
+    const { browser, page, info, logs, failed } = await openPage(url, fmt);
     try {
-      if (info.errors.length) console.error(`SCENE ERRORS (${fmt}):\n` + info.errors.join('\n'));
       rows.push(await tiles(page, info, times, times.length, { samples: sampling('1'), cell: +opt('cell', '360')!, label: fmt }));
+      // after sampling: a scene can boot clean and throw on a frame, and the sheet is still worth writing
+      const f = await faults(page, failed);
+      if (f.length) { console.error(`FAULTS (${fmt}):\n` + f.join('\n')); process.exitCode = 1; }
       if (i === formats.length - 1) {
         const data: string = await page.evaluate(async (rows) => {
           const imgs = await Promise.all(rows.map((b64: string) => new Promise<HTMLImageElement>((res, rej) => {
@@ -175,8 +191,9 @@ async function check(url: string, formats: string[], times: number[], out: strin
 
 const COLOR = ['-vf', 'vflip,scale=out_color_matrix=bt709,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709'];
 
-async function video(page: Page, info: Info, from: number, to: number, out: string) {
+async function video(page: Page, failed: Map<string, string>, info: Info, from: number, to: number, out: string) {
   mkdirSync(path.dirname(out), { recursive: true });
+  const part = out.replace(/(\.\w+)?$/, '.part$1'); // renamed to `out` only when the whole render is good, so a bad one can't replace a good file
   const { width, height, fps } = info;
   const music = info.music ? path.join(APP, 'public', info.music) : null;
   const hasMusic = !!music && existsSync(music);
@@ -211,7 +228,7 @@ async function video(page: Page, info: Info, from: number, to: number, out: stri
     f.push(`[mix]atrim=0:${len.toFixed(3)},afade=t=out:st=${fadeOut}:d=0.6,alimiter=limit=0.891:level=false[aout]`);
     args.push('-filter_complex', f.join(';'), '-map', '0:v', '-map', '[aout]', '-c:a', 'aac', '-b:a', '256k', '-ar', '48000');
   }
-  args.push('-movflags', '+faststart', out);
+  args.push('-movflags', '+faststart', part);
   const ff = Bun.spawn(args, { stdin: 'pipe', stdout: 'inherit', stderr: 'inherit' });
   const total = Math.round(to * fps) - Math.round(from * fps);
   let frames = 0;
@@ -238,8 +255,13 @@ async function video(page: Page, info: Info, from: number, to: number, out: stri
   });
   while (frames < total) await Bun.sleep(10);
   ff.stdin.end();
-  await ff.exited;
+  const code = await ff.exited;
   server.stop();
+  try {
+    if (code) throw new Error(`ffmpeg exited with code ${code}`);
+    await assertClean(page, failed);
+    renameSync(part, out);
+  } catch (e) { rmSync(part, { force: true }); throw e; }
   console.log(`\nwrote ${out} (${frames} frames, ${((performance.now() - t0) / 1000).toFixed(1)} s)${withAudio ? '' : ' [no audio]'}`);
   if (withAudio) {
     // the mix as delivered: platforms normalise to about -14 LUFS; a voice should read clearly over the bed
@@ -263,9 +285,10 @@ async function video(page: Page, info: Info, from: number, to: number, out: stri
 }
 
 /** Render the poster frame at t, then replace frame 0 of the video with it (same length, audio copied). */
-async function poster(page: Page, info: Info, t: number, videoPath: string) {
+async function poster(page: Page, failed: Map<string, string>, info: Info, t: number, videoPath: string) {
   const jpg = videoPath.replace(/\.mp4$/, '.poster.png');
   await page.evaluate(({ t, s }) => (window as any).__mg.still(t, s, 0.5), { t, s: sampling('auto') });
+  await assertClean(page, failed); // a scene that throws at t draws red: never save or bake that
   await grab(page, jpg);
   console.log(jpg);
   if (!existsSync(videoPath)) { console.log(`(no ${videoPath} yet: poster saved only)`); return; }
@@ -286,12 +309,13 @@ if (mode === 'check') {
     const formats = (opt('formats') ?? 'vertical,portrait,square,landscape').split(',');
     await check(url, formats, (opt('t') ?? '0').split(',').map(Number), path.resolve(opt('out', path.join(OUT, 'check.png'))!));
   } finally { stop(); }
-  process.exit(0);
+  process.exit();
 }
-const { browser, page, logs, info } = await openPage(url);
+const { browser, page, logs, info, failed } = await openPage(url);
 try {
   if (info.errors.length) console.error('SCENE ERRORS:\n' + info.errors.join('\n'));
   const fmt = info.format as string;
+  if (mode === 'video' || mode === 'poster') await assertClean(page, failed); // stills and sheets still draw, so a broken scene can be looked at
   if (mode === 'stills') {
     const times = (opt('t') ?? '0').split(',').map(Number);
     await stills(page, info, times, opt('out', path.join(OUT, 'stills', fmt))!);
@@ -305,14 +329,15 @@ try {
     await sheet(page, info, times, +opt('cols', '4')!, opt('out', path.join(OUT, `sheet-${fmt}.png`))!,
       { crop, samples: sampling('1'), cell: +opt('cell', '360')! });
   } else if (mode === 'video') {
-    await video(page, info, +opt('from', '0')!, +opt('to', String(info.duration))!, path.resolve(opt('out', path.join(OUT, `${fmt}.mp4`))!));
+    await video(page, failed, info, +opt('from', '0')!, +opt('to', String(info.duration))!, path.resolve(opt('out', path.join(OUT, `${fmt}.mp4`))!));
   } else if (mode === 'poster') {
     if (!opt('t')) throw new Error('poster needs --t <seconds> (a settled, strongest frame)');
-    await poster(page, info, +opt('t')!, path.resolve(opt('video', path.join(OUT, `${fmt}.mp4`))!));
+    await poster(page, failed, info, +opt('t')!, path.resolve(opt('video', path.join(OUT, `${fmt}.mp4`))!));
   } else throw new Error(`unknown mode ${mode}`);
   const late = await page.evaluate(() => (window as any).__mg.errors as string[]);
   if (late.length > info.errors.length) console.error('SCENE ERRORS:\n' + late.slice(info.errors.length).join('\n'));
   if (logs.length) console.error('BROWSER LOG:\n' + logs.slice(0, 40).join('\n'));
+  if ((await faults(page, failed)).length) process.exitCode = 1;
 } finally {
   await browser.close();
   stop();

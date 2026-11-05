@@ -32,6 +32,9 @@ Preset + freeform direction. Three adjectives it IS, three it is NOT.
 - Light and texture: bloom (accent only), grain, vignette, any inversion scenes.
 - Motif: the recurring element and how it travels between scenes.
 
+## Real durations on the map
+Lay the subject's real numbers over the music map before fixing the ending: a measured duration may already fit a section of the song, and a true coincidence is worth more than a designed one.
+
 ## Shot list
 (The rows below illustrate the level of detail for a hypothetical dot-matrix concept; your shots come from your own concept.)
 
