@@ -21,6 +21,7 @@ The surfaces are half of what makes a piece feel designed. Three.js's default ma
 | `gooch(warm, cool)` | illustrated warm-to-cool shading with a crisp highlight | friendly, designed, "motion design" 3D |
 | `rimGlow(base, rim)` | dark body outlined by a glowing fresnel rim that pulses on the beat | tech, night, neon without cliché |
 | `holo()` | hue shifting with view angle and height, drifting scanlines | UI-in-space, data, futures (sparingly) |
+| `surface(kind, hex)` (surfaces.ts) | shader colour, gloss and relief written into a real lit material: `wallpaper`, `plaster`, `boards`, `tile`, `concrete`, `brick`, `metal`, `ledger`; `water()`; `studio(r, scene)` for reflections | rooms and sets: keeps light, shadow and reflections, needs no texture files |
 | `customLook(glsl)` | write the fragment body yourself (N, V, L, P, uv, uTime, uBeat available; set `col`, `alpha`) | the piece's own signature surface |
 | `addRim(m)`, `addGrain(m)` | inject GLSL into any built-in lit material, keeping its lighting and shadows | adding character to physical materials |
 
@@ -46,6 +47,10 @@ Showing the real product (a page, an app window, a terminal) is honest and often
 - **Or put the screenshot on an object in the world:** a screen, a sheet, a panel, lit by the scene's key, with the world's grade applied, glass reflections and falloff; move the camera so the UI is a surface in space, not a rectangle on top.
 - **Crop to the part that matters** (the one panel, the one number) and scale it up; small UI text is illegible on a phone anyway.
 - **Replace generic chrome** (title bars, taskbars, scrollbars) with nothing, or with chrome designed in the piece's language.
+
+## When to skip the turntable
+
+A world with few surfaces can skip it, as long as the custom shader and the choice still happen: develop the materials in the shots and judge them in style frames.
 
 ## Checklist
 

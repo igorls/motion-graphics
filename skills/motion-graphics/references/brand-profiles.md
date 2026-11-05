@@ -2,6 +2,10 @@
 
 The skill is brand-neutral; everything brand-specific lives in one Markdown file per brand in `<skill-dir>/profiles/` (publishable, e.g. open-source projects) or `<skill-dir>/profiles/local/` (private and client brands, never shared). A profile is what you copy into `src/brand.ts` plus the judgement that code can't hold (voice, what the brand never does, which assets are the good ones).
 
+## Identity or one-off
+
+Say at the top of a profile which it is: `identity` (the brand's real, lasting system) or `one-off look` (what one past piece looked like). Never carry a one-off look into a new concept unconfirmed: a palette from a single post is not a brand, and a whole film built on one can fail at style frames.
+
 ## When there is no profile
 
 Build one from the source before designing, and offer to save it: `profiles/local/<brand>.md` by default, `profiles/<brand>.md` only when the user says it can be public (an open-source project's public brand is a good candidate):

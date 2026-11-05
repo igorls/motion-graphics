@@ -50,6 +50,8 @@ Find or infer what you can; the brief interview covers the rest. Defaults in bra
 
 Answer in a few lines before designing anything: What is it (one sentence)? Who is it for and what does it do for them? What is the single message? What is the most impressive thing it can *show* (not say)? What real material exists (UI, outputs, data, sounds, copy, numbers you can cite)? What is surprising, beautiful or funny about how it works inside? Gather the material into `public/media/`.
 
+**Look for recordings that already exist.** Read the format notes of the product's logs and traces before planning a new capture: a trace kept for one purpose often holds the data for another.
+
 Show the thing: the product doing its job beats any description of it. Use real outputs, real UI, real data and real copy; never invent claims, numbers or testimonials.
 
 **Placeholder data:** when the real recording can't be made yet (the hardware isn't available, the release isn't out), a concept may run on clearly estimated numbers, but only with a visible "NOT FOR POSTING" watermark on every frame, and with the exact command that records the real data written into the treatment. The watermark comes off only when the data is replaced.
@@ -60,9 +62,11 @@ Show the thing: the product doing its job beats any description of it. Use real 
 
 Ask what the material can't tell you. Pick the questions that matter for this piece (usually 6-10 over two or three rounds):
 
+- **The film that started this (ask first):** "What video, film or piece made you want this?" Study it before writing a concept: what it does, how many places and shots it has, what its arc is. It sets the bar and the energy, and one link can save several rounds. It is a reference for approach, never to copy.
+- **Energy:** name the kinetic level against the track's tempo. A quiet picture on a fast track fails on sight, however good the idea reads.
 - **Occasion and audience:** what is launching or being said, where it runs (organic post, paid ad, site hero, conference screen), who should stop scrolling.
 - **The one message** (offer 2-3 candidates you drafted from the material) and the feeling it should leave (awe, delight, confidence, curiosity, a laugh). Then: **after one watch, what should a viewer be able to say?** That sentence is what the comprehension review checks.
-- **Brand check:** "Here's the profile I built: palette, type, voice. Anything wrong or missing? Anything this brand never does?" Ask for do's and don'ts, and whether the piece may stretch the brand (a new motion language) or must stay strictly inside it.
+- **Brand check (never skip it):** a profile may describe one past piece, not an identity, so ask which it is before any palette reaches a concept.  "Here's the profile I built: palette, type, voice. Anything wrong or missing? Anything this brand never does?" Ask for do's and don'ts, and whether the piece may stretch the brand (a new motion language) or must stay strictly inside it.
 - **References:** pieces, brands, films or motion studios they love (and hate) for this; offer 2-3 reference directions to react to if they have none.
 - **Must include / must avoid:** product shots, UI, people, claims, logos, legal lines.
 - **Boldness:** on a scale from "safe and clean" to "make people ask how it was made", where should this land? (Recommend the bold end unless the brand says otherwise.)
@@ -78,6 +82,12 @@ Write three genuinely different concepts in `CONCEPTS.md`, each a paragraph plus
 1. **Expected:** the direction a competent studio would pitch first (useful as a floor).
 2. **Bold:** a strong visual metaphor or world the product lives in, with a camera and depth.
 3. **Unexpected:** something that makes a designer jealous: a transformation, an impossible camera move, a physical system, the product's data as the image, a format twist.
+
+**Start from what a viewer would tell a friend**: a story, a game, a joke, a true fact that hurts or delights. A concept that is only a mechanism (how the picture works) reads well as a paragraph and looks poor on screen. For a song, first read the lyric for its plot: map each section to a story beat, and ask what the song is really about. The strongest idea is often already in the words or the facts, not a metaphor laid on top.
+
+**A long piece needs a world with places, not a technique.** Count locations and shots per minute in the concept: one device repeated for four minutes looks the same however clever it is.
+
+**For a long piece, show motion early:** a short test at the concept stage, with at least four different shots, on the real music. And after any "not it", ask what is missing before making the next round: a three-question check costs a minute, a wrong build costs hours.
 
 For each concept also give: why it fits the brand and the brief, the risk, and a one-line description of its money shot as the user would see it. Present all three to the user with your recommendation (the boldest that lands the message and stays on brand) and ask them to pick, mix ("the camera of 3 with the world of 2") or push further. Iterate once or twice if they want; a concept round is cheap, a rebuilt piece is not. Never recommend the expected concept because it's easier to build.
 
@@ -102,7 +112,7 @@ The edit is built on the music, and you can't hear it, so the music comes before
 4. **The map is the truth for the edit.** Plan every window on it, not on what the score intended: models drift, and a picked take can put its peak a bar away from the plan. The timeline reads it: `au.moment('drop')` (the map's wow candidate), `au.section('break')`, `au.timeOfBar(n)`.
 5. **If the piece has a voice** ([references/voice.md](references/voice.md)): write the lines for the ear (say what the picture can't; a third of the runtime without voice), cast it (`bun scripts/voice.ts voices` / `design`, then `audition` three voices on the same two lines and let the user choose by ear), render the takes (`render`, after `render --dry` shows the cost), and place them on the map (`at`, `land` a key word on a beat, or `after` the previous line; `cues` prints where everything lands). Music-led pieces fit the lines into the map's windows; voice-led pieces (explainers, stories) render the voice first and cut the music and scenes to it. Leave the drop, the wow moment and the first second of the end card to the music.
 
-**A whole song (a music or lyric video)** is built in consecutive parts, each its own project from downbeat to downbeat, on exact crops of the master that are never faded or levelled, with the lyrics timed from the singer: follow [references/music-video.md](references/music-video.md) (`scripts/parts.py`, `scripts/lyrics_align.py`) and get the user's reaction to the opening part before building the rest. Steps 6-11 then run per part.
+**A whole song (a music or lyric video)** is built in consecutive parts from downbeat to downbeat (each its own project, or render windows over one project when the world carries across the song), on exact crops of the master that are never faded or levelled, with the lyrics timed from the singer: follow [references/music-video.md](references/music-video.md) (`scripts/parts.py`, `scripts/lyrics_align.py`) and get the user's reaction to the opening part before building the rest. Steps 6-11 then run per part.
 
 ### 6. Treatment and shot list, on the music map
 
@@ -119,7 +129,7 @@ If the piece uses generated clips, the treatment also holds a **clip shot list**
 
 ### 7. Look development, the wow moment, and style frames: design before animating
 
-**Prototype the wow moment first.** The hardest, most spectacular shot is built before anything else, the way studios build the hero shot first: a rough version in the real engine, timed to its bar, rendered as a short draft. If it doesn't make you want to replay it, redesign it now, while it's cheap. It gets the most time in the schedule. ([references/craft.md](references/craft.md#wow-engineering-the-peak) has patterns; `scenes/assemble.ts` shows one.)
+**Prototype the wow moment first, as a test of the concept.** It finds holes in the idea, not only in the shot, so write what it changes into the treatment.  The hardest, most spectacular shot is built before anything else, the way studios build the hero shot first: a rough version in the real engine, timed to its bar, rendered as a short draft. If it doesn't make you want to replay it, redesign it now, while it's cheap. It gets the most time in the schedule. ([references/craft.md](references/craft.md#wow-engineering-the-peak) has patterns; `scenes/assemble.ts` shows one.)
 
 **Look development.** Build the piece's material language in a lookdev turntable (`scenes/lookdev.ts`): candidate materials for the signature surfaces under the piece's light, including at least one custom shader written for this piece ([references/lookdev.md](references/lookdev.md)). Render stills, choose, then use those materials in the style frames. Default grey materials never reach a style frame.
 

@@ -44,6 +44,7 @@ os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_HUB_DISABLE_T
 import argparse
 import hashlib
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -72,8 +73,14 @@ def load_lyrics(path):
         s = raw.strip()
         if not s or s.startswith("#"):
             continue
-        lid, _, text = s.partition(" | ") if " | " in s else ("", "", s)
-        out.append({"id": lid.strip() or f"L{len(out) + 1:02d}", "text": text.strip()})
+        cols = [c.strip() for c in s.split(" | ")]
+        # "text", "id | text", or "id | voice | text" for a song with more than one singer
+        if len(cols) >= 3 and len(cols[1]) <= 3:
+            out.append({"id": cols[0], "voice": cols[1], "text": " | ".join(cols[2:])})
+        elif len(cols) >= 2:
+            out.append({"id": cols[0], "text": " | ".join(cols[1:])})
+        else:
+            out.append({"id": f"L{len(out) + 1:02d}", "text": s})
     return out
 
 
@@ -202,7 +209,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("audio")
     ap.add_argument("--lyrics", required=True)
-    ap.add_argument("--model", help="local Whisper folder or a cached hub id (offline)")
+    ap.add_argument("--model", default=os.environ.get("MOTION_WHISPER"), help="local Whisper folder or a cached hub id (offline); default $MOTION_WHISPER")
     ap.add_argument("--window", help="A,B song seconds")
     ap.add_argument("--crops", help='"a-b,c-d" song seconds')
     ap.add_argument("--alias", default="")
@@ -224,7 +231,7 @@ def main():
         passes, crops, model = cached["passes"], cached.get("crops"), cached.get("model")
     else:
         if not a.model:
-            ap.error("--model is required (or --passes-in)")
+            ap.error("--model or $MOTION_WHISPER is required (or --passes-in)")
         if a.crops:
             crops = [tuple(float(v) for v in c.split("-")) for c in a.crops.split(",")]
         elif a.window:
@@ -248,12 +255,27 @@ def main():
         ws = [{k: v for k, v in w.items() if k != "line"} for w in words if w["line"] == li]
         assert " ".join(w["text"] for w in ws) == " ".join(l["text"].split()), "canonical text changed"
         out_lines.append({**l, "words": ws})
+    # a stray ASR word can pin a word far from the rest of its line; show it instead of stretching the line quietly
+    stray = []
+    for l in out_lines:
+        ws = l["words"]
+        gaps = [b["start"] - a_["start"] for a_, b in zip(ws, ws[1:])]
+        if len(gaps) >= 2:
+            med = float(np.median(gaps))
+            stray += [ws[i]["text"] for i, g in enumerate(gaps) if g > max(1.0, 6 * med)]
+    # what the model heard that the lyrics never say: the raw material for the alias table
+    known = {norm(w) for l in lines for w in l["text"].split()} | {norm(k) for k in alias}
+    heard = {}
+    for ws in passes.values():
+        for w in ws:
+            if w["w"] and w["w"] not in known:
+                heard[w["w"]] = heard.get(w["w"], 0) + 1
     status = [w["status"] for w in words]
     order = [w for k, w in enumerate(words[1:]) if w["start"] < words[k]["start"] - 1e-6]
     summary = {"words": len(words), **{s: status.count(s) for s in ("asr", "soundalike", "interpolated")},
                "conflicts": sum(1 for w in words if w.get("conflict")),
                "maxSpread": max((w.get("spread", 0) for w in words), default=0),
-               "outOfOrder": [w["text"] for w in order]}
+               "outOfOrder": [w["text"] for w in order], "stray": stray}
     doc = {"schema": SCHEMA, "provisional": True, "limit": LIMIT,
            "audio": {"file": pathlib.Path(a.audio).name, "sha256": hashlib.sha256(pathlib.Path(a.audio).read_bytes()).hexdigest()},
            "method": {"model": str(model), "crops": crops, "lookahead": a.lookahead, "firstLookahead": a.first_lookahead,
@@ -270,6 +292,10 @@ def main():
     print(f"{out}: {summary['words']} words, {summary['asr']} asr, {summary['soundalike']} soundalike (~), "
           f"{summary['interpolated']} interpolated (?), {summary['conflicts']} conflicts, max spread {summary['maxSpread']:.2f} s"
           + (f"; OUT OF ORDER: {', '.join(summary['outOfOrder'])}" if order else "") + ". Provisional, not verified sync.")
+    if stray:
+        print(f"STRAY: far from the next word in their line, check by ear: {', '.join(stray)}")
+    if heard:
+        print("Heard but not in the lyrics (candidates for --alias): " + ", ".join(f"{k} x{v}" for k, v in sorted(heard.items(), key=lambda kv: -kv[1])[:24]))
 
 
 if __name__ == "__main__":

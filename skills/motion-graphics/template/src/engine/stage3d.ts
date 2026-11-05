@@ -14,12 +14,16 @@ export class Stage3D {
   private rt: THREE.WebGLRenderTarget;
 
   /** fov in degrees (vertical). 25-40 reads cinematic; 60+ reads wide-angle and dramatic. */
-  constructor(fov = 35) {
-    this.camera = new THREE.PerspectiveCamera(fov, W / H, 0.1, 5000);
+  constructor(fov = 35, o: { depth?: boolean; near?: number; far?: number } = {}) {
+    this.camera = new THREE.PerspectiveCamera(fov, W / H, o.near ?? 0.1, o.far ?? 5000);
     this.rt = new THREE.WebGLRenderTarget(W * SCALE, H * SCALE, {
       type: THREE.HalfFloatType, depthBuffer: true, samples: 4, colorSpace: THREE.NoColorSpace,
     });
+    if (o.depth) this.rt.depthTexture = new THREE.DepthTexture(W * SCALE, H * SCALE, THREE.FloatType);
   }
+
+  /** The depth of the last render, for depth-aware passes such as finish.ts (needs `depth: true`). */
+  get depth() { return this.rt.depthTexture!; }
 
   /** Linear fog towards a colour: the cheapest, strongest depth cue. near/far in world units. */
   fog(hexColor: string, near: number, far: number) {

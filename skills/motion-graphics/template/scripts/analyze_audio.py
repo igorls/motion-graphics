@@ -55,6 +55,38 @@ def band_onsets(env, delta=0.08):
     return [round(float(f) / FPS, 4) for f in frames], o
 
 
+def tempo_candidates(env, hop_s, detected):
+    """Score the detected tempo against its 3:2, 2:1 and 4:3 relatives on the onset envelope. Beat trackers lock onto
+    these on fast, syncopated music (drum and bass reads as two thirds of its tempo). A true tempo has energy at
+    every multiple of its lag, so the comb over four multiples separates it from a relative that only shares some."""
+    e = env - env.mean()
+    ac = np.correlate(e, e, "full")[len(e) - 1:]
+    ac = ac / (ac[0] + 1e-9)
+
+    def comb(bpm):
+        lag = 60.0 / bpm / hop_s
+        return float(np.mean([ac[int(round(lag * k))] for k in (1, 2, 3, 4) if int(round(lag * k)) < len(ac)]))
+
+    out = []
+    for r in (1, 3 / 2, 2 / 3, 2, 1 / 2, 4 / 3, 3 / 4):
+        base = detected * r
+        if not 60 <= base <= 200:
+            continue
+        fine = base * np.linspace(0.97, 1.03, 61)
+        scores = [comb(b) for b in fine]
+        i = int(np.argmax(scores))
+        out.append((float(fine[i]), float(scores[i]), r))
+
+    def refine(bpm):
+        """Long lags pin the tempo down: 0.3% off is two beats over a four-minute song."""
+        fine = bpm * np.linspace(0.99, 1.01, 801)
+        ks = [k for k in (8, 16, 32, 64, 128) if int(round(60.0 / bpm / hop_s * k * 1.01)) < len(ac)]
+        scores = [np.mean([ac[int(round(60.0 / b / hop_s * k))] for k in ks]) for b in fine]
+        return float(fine[int(np.argmax(scores))])
+
+    return sorted(out, key=lambda c: -c[1]), refine
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("audio")
@@ -62,6 +94,7 @@ def main():
     ap.add_argument("--beats-per-bar", type=int, default=4)
     ap.add_argument("--downbeat-offset", type=int, default=None, help="force which beat (0..n-1) is the downbeat")
     ap.add_argument("--bpm", type=float, default=None, help="known tempo (from the score): fit only the phase")
+    ap.add_argument("--no-tempo-check", action="store_true", help="keep the beat tracker's tempo even if a 3:2 or 2:1 relative fits better")
     ap.add_argument("--first-beat", type=float, default=None, help="force the first beat at this time (s)")
     ap.add_argument("--sections", default=None, help='bar map, e.g. "intro:0,build:4,drop:6"')
     ap.add_argument("--no-map", action="store_true", help="skip MUSIC-MAP.md and out/music-map.png")
@@ -80,6 +113,25 @@ def main():
     tempo, beat_frames = librosa.beat.beat_track(onset_envelope=onset_env, sr=SR, hop_length=HOP)
     beats = librosa.frames_to_time(beat_frames, sr=SR, hop_length=HOP)
     tempo = float(np.atleast_1d(tempo)[0])
+
+    # the tracker can settle on a relative of the true tempo, and then every bar and section is wrong
+    if not a.bpm:
+        cands, refine = tempo_candidates(onset_env, HOP / SR, tempo)
+        print("tempo candidates: " + ", ".join(f"{b:.2f} BPM ({s:.3f})" for b, s, _ in cands[:4]))
+        same = next((c for c in cands if c[2] == 1), None)
+        best = cands[0] if cands else None
+        if best and same and best[2] != 1:
+            # a 3:2 or 4:3 relative is a different grid, so a small lead is enough; an octave shares every beat
+            # and scores nearly the same as the true tempo, so it only warns, and only on a clear lead
+            octave = best[2] in (2, 1 / 2)
+            if best[1] > same[1] * (1.15 if octave else 1.04):
+                bpm = refine(best[0])
+                msg = f"the tracker found {tempo:.2f} BPM, but {bpm:.2f} fits the onsets better (x{best[2]:.3g})"
+                if a.no_tempo_check or octave:
+                    print(f"WARNING: {msg}; kept the tracker's tempo. Confirm by ear, or pass --bpm {bpm:.2f}")
+                else:
+                    print(f"WARNING: {msg}; using it. Confirm by ear, or pass --bpm or --no-tempo-check")
+                    a.bpm = round(bpm, 2)
 
     # steady track: fit one period + phase to the tracked beats and extend the grid over the whole file
     if len(beats) > 8:
