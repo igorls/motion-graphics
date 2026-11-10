@@ -133,12 +133,13 @@ Find out what the environment offers (a ComfyUI server, hosted APIs, MCP tools) 
 
 - **Music** was step 5; if a re-take is needed, re-map it and re-check every window.
 - **Clips:** prefer image-to-video from real product imagery; for inserts, generate on a flat green (or blue) screen, prep with `bun scripts/prep_clip.ts <video> --name <n> --key auto` and **look at the QA sheet**. Several seeds; keep the best motion. [references/generative-video.md](references/generative-video.md)
+- **A scene, not one clip:** several shots with the same person and place, each with its own sound, are directed through a timeline editor, drafts first and finals for the keepers; then the shots' sound is mixed onto the music track. [references/adapters/h3-editor-comfyui.md](references/adapters/h3-editor-comfyui.md)
 - **Batch runs on ComfyUI:** `bun scripts/comfy.ts` submits an API-format workflow with overrides and one job per varied value (seeds, prompts), waits and downloads the outputs with a provenance record.
 - **Provenance:** record every generated asset in `assets.json` (model, checkpoint, workflow, prompt or score, seed, date, prep command). Model licences and permitted uses are the user's call.
 
 - **Voice:** `bun scripts/voice.ts render` writes one mastered take per line (`public/vo/<id>.wav`) with its word timings; the engine places the lines, draws captions from them and the render mixes them over a ducked bed. Send new takes to the user to hear before building on them.
 
-Worked examples for specific models: `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI, ElevenLabs voice).
+Worked examples for specific models and tools: `references/adapters/` (YuE2 music and MiniMax H3 video on ComfyUI, H3 Editor for a directed sequence of H3 shots, ElevenLabs voice).
 
 ### 9. Build scene by scene, and look at every one
 

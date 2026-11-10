@@ -47,4 +47,7 @@ The keyer is a colour-difference matte (green excess over max(red, blue), normal
 
 Add every generated clip to `assets.json` (model, checkpoint, workflow/template, prompt, seed, resolution, date, and the prep command used). Licences and permitted uses are the user's call; the record is what they need to make it.
 
-Worked example: [adapters/minimax-h3-comfyui.md](adapters/minimax-h3-comfyui.md).
+Worked examples:
+
+- One clip or a keyed insert from a raw workflow: [adapters/minimax-h3-comfyui.md](adapters/minimax-h3-comfyui.md).
+- A directed scene (several shots with the same person and place, each with its own sound, drafts then finals) through a timeline editor: [adapters/h3-editor-comfyui.md](adapters/h3-editor-comfyui.md).
