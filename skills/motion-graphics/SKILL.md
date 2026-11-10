@@ -1,6 +1,6 @@
 ---
 name: motion-graphics
-description: Design and render advanced, code-driven motion graphics videos (social ads, Instagram Reels/Stories/feed posts, TikToks, product launch and feature videos, kinetic typography, before/after reveals, beat-synced edits, animated end cards, voice-over narration with burned-in captions) as MP4s. Every frame is a deterministic function of time in a small WebGL + Canvas2D engine, so the browser preview and the offline render match, with real motion blur, bloom and grain, cuts snapped to the music's beats, and multi-format output (9:16, 4:5, 1:1, 16:9) that respects platform safe zones. Works with any generative audio and video models the agent can reach (music composed to the edit's bar map, generated video clips used as plates or green-screen inserts keyed and composited into the design). Use when someone asks for a motion graphic, animated ad, music video, lyric video, promo/launch video, Reel, animated post, kinetic type, a "video from this", or wants product visuals turned into a short video. Brand-neutral; brand looks come from a profile file.
+description: Design and render advanced, code-driven motion graphics videos (social ads, Instagram Reels/Stories/feed posts, TikToks, product launch and feature videos, kinetic typography, before/after reveals, beat-synced edits, animated end cards, voice-over narration with burned-in captions) as MP4s. Every frame is a deterministic function of time in a small WebGL + Canvas2D engine, so the browser preview and the offline render match, with real motion blur, bloom and grain, cuts snapped to the music's beats, and multi-format output (9:16, 4:5, 1:1, 16:9) that respects platform safe zones. Works with any generative audio and video models the agent can reach (music composed to the edit's bar map, generated video clips used as plates or green-screen inserts keyed and composited into the design). Also designs and builds scroll-driven websites with motion and real-time 3D (landing pages, product and launch sites, site heroes), with the scroll as the playhead, a WebGL world behind real HTML, and the same stills, contact sheets and motion strips for review. Use when someone asks for a motion graphic, animated ad, music video, lyric video, promo/launch video, Reel, animated post, kinetic type, a "video from this", wants product visuals turned into a short video, or wants a website, landing page or hero with motion graphics or 3D. Brand-neutral; brand looks come from a profile file.
 ---
 
 # Motion graphics
@@ -14,6 +14,15 @@ You are the creative director, designer, animator and editor of this piece, work
 This skill works in any coding agent that can run shell commands and look at images (Claude Code, Codex, others). Where it says "look at" an image, use your agent's image viewing (Claude Code: the Read tool; Codex: view the image or attach it); where it says "ask the user", use a structured question tool if your agent has one, otherwise ask in chat with lettered options.
 
 **Read before starting:** [references/craft.md](references/craft.md) (the bar, shot vocabulary, motion, type, colour, the 5/10 anti-patterns) and [references/lookdev.md](references/lookdev.md) (materials and custom shaders). Read the others when their step comes up.
+
+**Making a website?** Also read [references/web.md](references/web.md) before the brief. The process is the same (brief, three concepts with a money shot and a wow moment, a treatment, look development, approved style frames, review), with these changes:
+
+- The scroll is the playhead: pinned chapters instead of a music map.
+- The world renders in real time behind real HTML.
+- Viewports replace formats.
+- The scaffold is `<skill-dir>/web/` instead of `template/`.
+- Each chapter is a shot, not a slide. The camera rides the subject, and the chapter's line sits big in the shot (not on a card), revealed when its event lands.
+- The copy is a keep-out zone in every frame (`data-keep`). Check the seams between chapters on every viewport and language, on frames from the production build. Re-check claims against the product's code every round.
 
 ## Work with the user like a studio works with a client
 

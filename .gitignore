@@ -11,8 +11,9 @@ skills/motion-graphics/profiles/local/
 # scratch pieces made while dogfooding
 dogfood/
 
-# machine-specific agent notes
+# machine-specific agent notes, worktrees and launch settings
 CLAUDE.local.md
+.claude/
 
 # credentials never belong in the repo (provider keys live in the environment or ~/.config)
 .env

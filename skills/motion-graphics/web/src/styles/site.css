@@ -1,0 +1,124 @@
+/* Tokens: fill from the brand profile (fonts self-hosted in public/fonts, @font-face here). */
+:root {
+  --paper: #F6F4F0;
+  --raised: #FFFFFF;
+  --ink: #111318;
+  --ink-2: #2A2E36;
+  --muted: #646A75;
+  --border: #E4E0D9;
+  --accent: #FF5A1F;
+  --action: #C2410C;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --gutter: clamp(20px, 4vw, 56px);
+  --radius: 22px;
+  --shadow: 0 1px 0 rgba(17, 19, 24, 0.04), 0 18px 48px -18px rgba(17, 19, 24, 0.18);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 88px; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.55 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: clip; }
+a { color: var(--action); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.035em; line-height: 1.05; text-wrap: balance; }
+h2 { font-size: clamp(30px, 3.6vw, 46px); }
+p { margin: 0; text-wrap: pretty; }
+.display { font-size: clamp(48px, 8vw, 128px); line-height: 0.95; letter-spacing: -0.045em; }
+.display span { display: block; }
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--action); margin-bottom: 18px; }
+.lede { font-size: clamp(18px, 1.5vw, 21px); color: var(--ink-2); max-width: 34em; margin-top: 24px; }
+.skip { position: absolute; left: 12px; top: -60px; z-index: 50; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 12px; }
+.skip:focus { top: 12px; }
+
+/* the world: fixed behind everything, decorative */
+canvas.world { position: fixed; inset: 0; z-index: 0; width: 100vw; height: 100vh; opacity: 0; transition: opacity 0.9s ease; pointer-events: none; }
+canvas.world.on { opacity: 1; }
+main, .site-footer { position: relative; z-index: 1; }
+
+/* header: glass on scroll; ink follows the tone of what is under it (ui.ts) */
+.site-header { position: fixed; z-index: 20; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 24px; padding: 18px var(--gutter); }
+.site-header::before { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--paper) 72%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); opacity: var(--hdr, 0); }
+.site-header > * { position: relative; }
+.site-header.on-dark::before { background: color-mix(in srgb, #0B1120 62%, transparent); }
+.site-header.on-dark .brand, .site-header.on-dark .nav a { color: #F3EEE7; }
+.brand { font-weight: 800; font-size: 19px; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+.nav { display: flex; gap: 22px; margin-right: auto; }
+.nav a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 14px 26px; border-radius: 16px; border: 0; background: var(--action); color: #fff; font: 700 16px/1 var(--sans); text-decoration: none; cursor: pointer; }
+.btn-ghost { background: color-mix(in srgb, var(--raised) 80%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--border); }
+.btn-small { min-height: 40px; padding: 10px 16px; font-size: 14px; border-radius: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+
+/* chapters: the scroll is the playhead. A pinned chapter is tall; its sticky child holds the copy. */
+.ch { position: relative; }
+.ch[data-pin] .pin { position: sticky; top: 0; height: 100svh; display: grid; align-items: center; padding: 96px var(--gutter) 48px; }
+.ch-hero { min-height: 100svh; display: grid; align-items: center; padding: 120px var(--gutter) 80px; isolation: isolate; }
+.hero-copy { max-width: min(620px, 52vw); }
+.ch-build { height: 300svh; }
+/* explanatory copy sits on opaque cards: the world never reads through text */
+/* words in the shot: a chapter's line, big, in the calm area its camera leaves (cards are for real explanation) */
+.statement { position: relative; z-index: 2; max-width: 660px; align-self: start; }
+.statement .lede { margin-top: 18px; max-width: 26em; }
+.display-s { font-size: clamp(34px, 4.1vw, 62px); line-height: 1.02; letter-spacing: -0.038em; font-weight: 800; }
+.note { position: relative; z-index: 2; max-width: 420px; background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px 32px; box-shadow: var(--shadow); }
+.note h2 { font-size: clamp(26px, 2.6vw, 34px); margin-bottom: 14px; }
+/* labels pinned to the world go under the copy */
+.labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.pin-label { position: absolute; left: 0; top: 0; padding: 6px 12px; border-radius: 999px; background: var(--raised); box-shadow: var(--shadow); font-size: 13px; font-weight: 700; white-space: nowrap; opacity: 0; }
+/* copy over a dark world carries light ink */
+html.world-dark .ch[data-tone="world"] { color: #F3EEE7; }
+html.world-dark .ch[data-tone="world"] .lede { color: #D9DCE6; }
+/* cards keep their own ink whatever the world does */
+html.world-dark .ch[data-tone="world"] .note { color: var(--ink); }
+
+/* opaque sections: the world sleeps under them (data-cover) */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gutter); }
+.ch-cards { padding: 140px 0 120px; background: var(--paper); }
+.ch-cards h2 { margin-bottom: 40px; max-width: 16em; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; }
+.card h3 { margin-bottom: 10px; }
+.card p { color: var(--muted); font-size: 16px; }
+.ch-end { padding: 160px 0; isolation: isolate; }
+.end-wrap > * { max-width: 600px; }
+.signup { margin-top: 36px; }
+.signup label { display: block; font-weight: 700; margin-bottom: 10px; }
+.field { display: flex; gap: 10px; flex-wrap: wrap; }
+.field input { flex: 1 1 260px; min-height: 54px; border: 0; border-bottom: 2.5px solid var(--accent); border-radius: 14px 14px 6px 6px; padding: 0 18px; font: 500 18px var(--sans); }
+.fine { margin-top: 12px; font-size: 14px; opacity: 0.75; }
+.site-footer { padding: 40px var(--gutter); border-top: 1px solid var(--border); background: var(--paper); color: var(--muted); font-size: 14px; }
+
+/* posters: the world's own frame per chapter, under the canvas while it boots, and the picture without WebGL */
+.poster { position: absolute; inset: 0; z-index: -1; overflow: hidden; transition: opacity 0.8s ease; }
+.poster img { width: 100%; height: 100%; object-fit: cover; }
+html.world-on .poster { opacity: 0; }
+.still .poster { display: none; }
+
+/* screenshots (?still) and reduced motion: no transitions, every frame its final state */
+.still *, .still *::before, .still *::after { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) { canvas.world, .poster { transition: none; } }
+@media (max-width: 760px) {
+  .nav { display: none; }
+  .hero-copy { max-width: none; align-self: start; }
+  .ch-hero { align-items: start; padding-top: 100px; }
+  .ch[data-pin] .pin { align-items: start; padding-top: 84px; }
+  .note { max-width: none; }
+  .cards { grid-template-columns: 1fr; }
+}
+
+/* a line that waits for its event: [data-steps] gives the phase (ui.ts), the reveal follows it */
+[data-reveal] { transition: opacity 0.55s ease, transform 0.7s cubic-bezier(.2, .8, .2, 1); }
+.js [data-reveal][data-phase="0"] { opacity: 0; transform: translateY(18px); }
+/* beats: one line per step of a chapter, stacked in one place (all shown, in order, without JavaScript).
+   <div class="beats" data-steps="0.3,0.6"><div class="beat beat-a">…</div><div class="beat beat-b">…</div><div class="beat beat-c">…</div></div> */
+.beats { display: grid; }
+.beats > .beat { grid-area: 1 / 1; transition: opacity 0.45s ease, transform 0.6s cubic-bezier(.2, .8, .2, 1); }
+.js .beats > .beat { opacity: 0; transform: translateY(14px); }
+.js .beats[data-phase="0"] > .beat-a, .js .beats[data-phase="1"] > .beat-b, .js .beats[data-phase="2"] > .beat-c { opacity: 1; transform: none; }
+.no-js .beats { gap: 32px; }
+.no-js .beats > .beat { grid-area: auto; }
+@media (prefers-reduced-motion: reduce) { [data-reveal], .beats > .beat { transition: none; transform: none !important; } }
+
+/* without JavaScript nothing plays on scroll, so pinned chapters flow as ordinary sections */
+.no-js .ch[data-pin] { height: auto; }
+.no-js .ch[data-pin] .pin { position: relative; height: auto; min-height: 100svh; }

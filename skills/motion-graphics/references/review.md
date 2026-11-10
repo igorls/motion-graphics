@@ -39,7 +39,7 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 > 3. **Composition:** is every frame a designed image (hierarchy, scale contrast, balance, use of the whole frame), or text placed on a background?
 > 4. **Motion and camera:** does the camera move through space? Is there depth, parallax, a transformation? Snap-and-hold rhythm, or linear drift?
 > 5. **Variety:** do shot sizes, layouts and techniques change from shot to shot, or is it the same frame repeated?
-> 6. **Look and materials:** are the surfaces designed (a material language, custom shading, light that sculpts), or default grey renders? Does frame 0 look as designed as the money shot?
+> 6. **Look and materials:** are the surfaces designed (a material language, custom shading, light that sculpts), or default grey renders? Does frame 0 look as designed as the money shot? Is the world graphic (marks drawn by shaders, 2D shapes in 3D space), or does it reach for realism with basic solids under lit materials? Score the second at 6 or below, and name it: it reads as an unfinished model, however well it is lit.
 > 7. **Craft:** type (kerning, hierarchy, readability at phone size, calm areas behind headlines), colour discipline, edge quality, timing of holds, transitions.
 > 8. **Brand fit and message:** is it unmistakably this product and brand (palette, type, voice, the do's and don'ts in BRIEF.md), and does the single message land with the sound off?
 > 9. **Sound (if there is audio):** does the edit hit the music; is the music original and fitting? If there is a voice: is it cast for this brand (not a default narrator), performed rather than read, saying what the picture can't (not describing it), placed so its key words land on the beat and leave the peak to the music, and mixed so every word is clear over the bed? Is the piece still complete with the sound off (captions or on-screen type)?
@@ -50,6 +50,52 @@ Give the reviewer only: the contact sheets and stills (file paths), `BRIEF.md`, 
 > If previous rounds exist: say which earlier notes were fixed, which weren't, and don't reverse an earlier note unless the change made it wrong (say why).
 >
 > Then: the single weakest thing, and the one change that would raise the piece the most. Finally: would you ship it? yes/no (answer no if any dimension is below 8).
+
+## Reviewing a website
+
+There's no single video to watch, so give the reviewer what a visitor sees and feels. Run these with `<skill-dir>/web/scripts/shoot.ts`:
+
+```bash
+bun scripts/shoot.ts sheet --n 24 --vp desktop          # the home page as a contact sheet, labelled by chapter
+bun scripts/shoot.ts sheet --n 18 --vp phone
+bun scripts/shoot.ts strip --from <wow start> --to <wow end> --every 0.05   # the wow moment as motion
+bun scripts/shoot.ts strip --from <a> --to <b> --every 0.1                  # each hand-off between chapters, too
+bun scripts/shoot.ts check --s <key moments>            # the same moments on every viewport
+bun scripts/shoot.ts seams --vp desktop,laptop,tablet,phone   # every chapter boundary, just before to just after (where collisions live)
+bun scripts/shoot.ts at --s <t> --press '<selector>:<ms>'   # an interaction by a real pointer at the control's visible centre
+bun scripts/shoot.ts at --s <t> --tab <n>                  # keyboard: focus by Tab (the focus ring, and whether the page jumps)
+bun scripts/shoot.ts clock --s 0 --from 0 --to 20 --every 2  # the hero's idle motion over time (walkers, pings, breathing)
+bun scripts/shoot.ts full --page <each page>            # each page without the world: copy, layout, fallbacks (in parts past 16k px)
+bun scripts/shoot.ts perf --vp desktop,phone            # frame times while scrolling, and where the slowest frames land
+```
+
+Repeat the sheet and the checks in every language the site ships: translations run longer and break headlines differently.
+
+Capture interactions the way a visitor performs them. A synthetic event (`--eval` dispatching a keydown) works wherever the element is, even off-screen, so it once passed a demo whose button had vanished. `--press` fails when the control isn't fully on screen.
+
+Also put a **scroll-time table** in REVIEW.md. For every chapter, list:
+
+- its scroll length in viewports;
+- the words a visitor reads while it's pinned;
+- what moves.
+
+It is the page's reading-time table.
+
+Add four dimensions to the brief, after the ten above:
+
+> 11. **Performance:** from the perf numbers and the first paint (the hero poster), would it feel smooth on a mid-range phone? Name the chapter that drops frames.
+> 12. **Accessibility:**
+>     - Is every word in the page, not only in the canvas?
+>     - Does every text element keep its contrast against what's behind it, for the whole time it's on screen? Also with the world off or still loading: light ink needs a dark ground then too.
+>     - Does the page work by keyboard, and does it have a designed reduced-motion version?
+> 13. **Responsiveness:** does each key moment work on phone, tablet and desktop? Name collisions (a subject under copy, a label across text, a subject under the header) by viewport and story time. Can every page be reached from a phone?
+> 14. **First-scroll comprehension:** does the first screen show the product doing its job (not a logo object at rest)? Write the sentence a first-time visitor would say after one scroll at a normal pace, and compare it with BRIEF.md. Where would they stop scrolling, and where would they get lost? Does any copy run ahead of the picture (a line about an event shown before the event)?
+>
+> Also: does it feel like a site (clear navigation, obvious actions, readable sections), not only like a film you scroll through?
+>
+> For Composition and Variety on a site, watch for one layout carrying chapter after chapter (the same card in the same third over a held camera). It's the web's locked-off shot: the world turns into a backdrop.
+
+The ship gate is the same: every dimension 8 or above, on frames from the production build (`bun run build`, then add `--dist` to every shot).
 
 ## Act on it
 

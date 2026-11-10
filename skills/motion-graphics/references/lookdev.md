@@ -4,6 +4,7 @@ The surfaces are half of what makes a piece feel designed. Three.js's default ma
 
 ## The rule
 
+- **Graphic, not realistic.** Build worlds from marks a shader draws: lines, dots, rings, glyphs, fields, flat planes floating in space. 2D shapes in 3D space read as design. Basic 3D solids under materials meant for photorealism read as an unfinished architectural model, and they cost the most to render. Embrace the abstract: a city can be one plane whose shader draws streets as lines and density as halftone dots, and at night those dots become points of light. Depth comes from layering, parallax, scale and fog, not from shading volumes. Keep a lit solid, if any, for the one object that earns it.
 - **No default materials in a shot.** Every surface is a decision: which material, what it's made of, how it catches the key light, how it reacts to the beat. Grey `MeshStandardMaterial` / `MeshBasicMaterial` is scaffolding only.
 - **Design the look during style frames**, before animating: build a turntable (`scenes/lookdev.ts`) with the piece's candidate materials under the piece's light, render stills, and choose. Show the user.
 - **Write at least one custom shader per piece.** A starting-point look tuned to the brand counts only if its maths changed; the goal is a surface nobody has seen on this product.
